@@ -57,7 +57,6 @@ import android.widget.ImageView
 import android.widget.Toast
 import com.bumptech.glide.Glide
 import com.twitter.Extractor
-import com.twitter.Validator
 import kotlinx.android.synthetic.main.activity_compose.*
 import nl.komponents.kovenant.task
 import org.mariotaku.abstask.library.AbstractTask
@@ -99,6 +98,7 @@ import org.mariotaku.twidere.util.*
 import org.mariotaku.twidere.util.EditTextEnterHandler.EnterListener
 import org.mariotaku.twidere.util.dagger.GeneralComponent
 import org.mariotaku.twidere.util.premium.ExtraFeaturesService
+import org.mariotaku.twidere.util.text.StatusTextValidator
 import org.mariotaku.twidere.util.view.SimpleTextWatcher
 import org.mariotaku.twidere.util.view.ViewAnimator
 import org.mariotaku.twidere.util.view.ViewProperties
@@ -122,8 +122,6 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
     // Utility classes
     @Inject
     lateinit var extractor: Extractor
-    @Inject
-    lateinit var validator: Validator
     @Inject
     lateinit var locationManager: LocationManager
 
@@ -1064,7 +1062,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         }
 
         if (extras != null) {
-            if (extras.summaryText?.isNotEmpty() ?: false) {
+            if (extras.summaryText?.isNotEmpty() == true) {
                 editSummaryEnabled = true
             }
             editSummary.setText(extras.summaryText)
@@ -1492,13 +1490,23 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             getStatusUpdate(true)
         } catch (e: NoAccountException) {
             editText.error = getString(R.string.message_toast_no_account_selected)
+            editText.requestFocus()
             return
         } catch (e: NoContentException) {
             editText.error = getString(R.string.error_message_no_content)
+            editText.requestFocus()
             return
         } catch (e: StatusTooLongException) {
             editText.error = getString(R.string.error_message_status_too_long)
-            editText.setSelection(e.exceededStartIndex, editText.length())
+            editSummary.string = e.summary
+            editText.string = e.text
+            if (e.textExceededStartIndex >= 0) {
+                editText.setSelection(e.textExceededStartIndex, editText.length())
+                editText.requestFocus()
+            } else if (e.summaryExceededStartIndex >= 0) {
+                editSummary.setSelection(e.summaryExceededStartIndex, editSummary.length())
+                editSummary.requestFocus()
+            }
             return
         }
 
@@ -1539,20 +1547,12 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
     }
 
     private fun getStatusUpdate(checkLength: Boolean): ParcelableStatusUpdate {
-        val accountKeys = accountsAdapter.selectedAccountKeys
-        if (accountKeys.isEmpty()) throw NoAccountException()
+        val accounts = accountsAdapter.selectedAccounts
+        if (accounts.isEmpty()) throw NoAccountException()
         val update = ParcelableStatusUpdate()
         val media = this.media
-        val text = editText.string?.let { Normalizer.normalize(it, Normalizer.Form.NFC) }.orEmpty()
-        var summary: String? = null
-        var summaryLength = 0
-        if (editSummary.visibility == View.VISIBLE) {
-            summary = editSummary.string?.takeIf(String::isNotEmpty)?.let {
-                Normalizer.normalize(it, Normalizer.Form.NFC)
-            }
-            summaryLength = summary?.let { validator.getTweetLength(it) } ?: 0
-        }
-        val accounts = AccountUtils.getAllAccountDetails(AccountManager.get(this), accountKeys, true)
+        val summary = editSummary.textIfVisible?.normalized(Normalizer.Form.NFC)
+        val text = editText.text?.normalized(Normalizer.Form.NFC).orEmpty()
         val maxLength = statusTextCount.maxLength
         val inReplyTo = inReplyToStatus
         val replyTextAndMentions = getTwitterReplyTextAndMentions(text, accounts)
@@ -1560,10 +1560,15 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             val (replyStartIndex, replyText, _, excludedMentions, replyToOriginalUser) =
                     replyTextAndMentions
             if (replyText.isEmpty() && media.isEmpty()) throw NoContentException()
-            val totalLength = summaryLength + validator.getTweetLength(replyText)
+            val totalLength = StatusTextValidator.calculateLength(accounts, summary, replyText)
             if (checkLength && !statusShortenerUsed && maxLength > 0 && totalLength > maxLength) {
-                throw StatusTooLongException(replyStartIndex +
-                        replyText.offsetByCodePoints(0, maxLength - summaryLength))
+                val summaryLength = StatusTextValidator.calculateSummaryLength(accounts, summary)
+                if (summary != null && summaryLength > maxLength) {
+                    throw StatusTooLongException(summary.offsetByCodePoints(0, maxLength),
+                            if (text.isEmpty()) -1 else 0, summary, text)
+                }
+                throw StatusTooLongException(-1, replyStartIndex + replyText.offsetByCodePoints(0,
+                        maxLength - summaryLength), summary, text)
             }
             update.text = replyText
             update.extended_reply_mode = true
@@ -1575,9 +1580,15 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             }
         } else {
             if (text.isEmpty() && media.isEmpty()) throw NoContentException()
-            val totalLength = summaryLength + validator.getTweetLength(text)
+            val totalLength = StatusTextValidator.calculateLength(accounts, summary, text)
             if (checkLength && !statusShortenerUsed && maxLength > 0 && totalLength > maxLength) {
-                throw StatusTooLongException(text.offsetByCodePoints(0, maxLength - summaryLength))
+                val summaryLength = StatusTextValidator.calculateSummaryLength(accounts, summary)
+                if (summary != null && summaryLength > maxLength) {
+                    throw StatusTooLongException(summary.offsetByCodePoints(0, maxLength),
+                            if (text.isEmpty()) -1 else 0, summary, text)
+                }
+                throw StatusTooLongException(-1, text.offsetByCodePoints(0,
+                        maxLength - summaryLength), summary, text)
             }
             update.text = text
             update.extended_reply_mode = false
@@ -1604,27 +1615,28 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
 
     private fun updateTextCount() {
         val editable = editText.editableText ?: return
-        var summaryLength = 0
-        if (editSummary.visibility == View.VISIBLE) {
-            summaryLength = validator.getTweetLength(editSummary.string.orEmpty())
-        }
+        val summary = editSummary.textIfVisible?.toString()
+        val accounts = accountsAdapter.selectedAccounts
         val text = editable.toString()
         val textAndMentions = getTwitterReplyTextAndMentions(text)
         if (textAndMentions == null) {
             hintLabel.visibility = View.GONE
             editable.clearSpans(MentionColorSpan::class.java)
-            statusTextCount.textCount = summaryLength + validator.getTweetLength(text)
+            statusTextCount.textCount = StatusTextValidator.calculateLength(accounts, summary, text,
+                    false, null)
         } else if (textAndMentions.replyToOriginalUser || replyToSelf) {
             hintLabel.visibility = View.GONE
             val mentionColor = ThemeUtils.getTextColorSecondary(this)
             editable.clearSpans(MentionColorSpan::class.java)
             editable.setSpan(MentionColorSpan(mentionColor), 0, textAndMentions.replyStartIndex,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            statusTextCount.textCount = summaryLength + validator.getTweetLength(textAndMentions.replyText)
+            statusTextCount.textCount = StatusTextValidator.calculateLength(accounts, summary,
+                    textAndMentions.replyText, false, null)
         } else {
             hintLabel.visibility = View.VISIBLE
             editable.clearSpans(MentionColorSpan::class.java)
-            statusTextCount.textCount = summaryLength + validator.getTweetLength(textAndMentions.replyText)
+            statusTextCount.textCount = StatusTextValidator.calculateLength(accounts, summary,
+                    textAndMentions.replyText, false, null)
         }
     }
 
@@ -2207,7 +2219,13 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
 
     private open class ComposeException : Exception()
 
-    private class StatusTooLongException(val exceededStartIndex: Int) : ComposeException()
+    private class StatusTooLongException(
+            val summaryExceededStartIndex: Int,
+            val textExceededStartIndex: Int,
+            val summary: String?,
+            val text: String
+    ) : ComposeException()
+
     private class NoContentException : ComposeException()
     private class NoAccountException : ComposeException()
 
