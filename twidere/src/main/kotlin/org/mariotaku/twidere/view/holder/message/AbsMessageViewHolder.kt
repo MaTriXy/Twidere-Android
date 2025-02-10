@@ -20,8 +20,8 @@
 package org.mariotaku.twidere.view.holder.message
 
 import android.os.Build
-import android.support.v4.view.GravityCompat
-import android.support.v7.widget.RecyclerView
+import androidx.core.view.GravityCompat
+import androidx.recyclerview.widget.RecyclerView
 import android.text.format.DateUtils
 import android.view.View
 import android.widget.FrameLayout
@@ -92,8 +92,7 @@ abstract class AbsMessageViewHolder(itemView: View, val adapter: MessagesConvers
     }
 
     open fun setMessageContentGravity(view: View, outgoing: Boolean) {
-        val lp = view.layoutParams
-        when (lp) {
+        when (val lp = view.layoutParams) {
             is FrameLayout.LayoutParams -> {
                 lp.gravity = if (outgoing) GravityCompat.END else GravityCompat.START
             }

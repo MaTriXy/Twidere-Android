@@ -32,17 +32,18 @@ import android.graphics.Canvas
 import android.graphics.Rect
 import android.location.*
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.support.v4.app.ActivityCompat
-import android.support.v4.widget.TextViewCompat
-import android.support.v7.app.AlertDialog
-import android.support.v7.view.SupportMenuInflater
-import android.support.v7.widget.ActionMenuView.OnMenuItemClickListener
-import android.support.v7.widget.FixedLinearLayoutManager
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
-import android.support.v7.widget.RecyclerView.ViewHolder
-import android.support.v7.widget.helper.ItemTouchHelper
+import androidx.core.app.ActivityCompat
+import androidx.core.widget.TextViewCompat
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.view.SupportMenuInflater
+import androidx.appcompat.widget.ActionMenuView.OnMenuItemClickListener
+import androidx.recyclerview.widget.FixedLinearLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView.ViewHolder
+import androidx.recyclerview.widget.ItemTouchHelper
 import android.text.Editable
 import android.text.Spannable
 import android.text.Spanned
@@ -56,7 +57,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import android.widget.Toast
 import com.bumptech.glide.Glide
-import com.twitter.Extractor
+import com.twitter.twittertext.Extractor
 import kotlinx.android.synthetic.main.activity_compose.*
 import nl.komponents.kovenant.task
 import org.mariotaku.abstask.library.AbstractTask
@@ -113,6 +114,7 @@ import java.text.Normalizer
 import java.util.*
 import javax.inject.Inject
 import kotlin.collections.ArrayList
+import kotlin.math.abs
 import android.Manifest.permission as AndroidPermission
 
 @SuppressLint("RestrictedApi")
@@ -122,6 +124,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
     // Utility classes
     @Inject
     lateinit var extractor: Extractor
+
     @Inject
     lateinit var locationManager: LocationManager
 
@@ -360,7 +363,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         statusShortenerUsed = !ComponentPickerPreference.isNoneValue(kPreferences[statusShortenerKey])
         if (kPreferences[attachLocationKey]) {
             if (checkAnySelfPermissionsGranted(AndroidPermission.ACCESS_COARSE_LOCATION,
-                    AndroidPermission.ACCESS_FINE_LOCATION)) {
+                            AndroidPermission.ACCESS_FINE_LOCATION)) {
                 try {
                     startLocationUpdateIfEnabled()
                 } catch (e: SecurityException) {
@@ -377,8 +380,8 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         saveAccountSelection()
         saveVisibility()
         try {
-            if (locationListener != null) {
-                locationManager.removeUpdates(locationListener)
+            locationListener?.let {
+                locationManager.removeUpdates(it)
                 locationListener = null
             }
         } catch (ignore: SecurityException) {
@@ -389,13 +392,17 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
             REQUEST_TAKE_PHOTO, REQUEST_PICK_MEDIA -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
                     val src = MediaPickerActivity.getMediaUris(data)
-                    TaskStarter.execute(AddMediaTask(this, src, null, false, false))
+                    TaskStarter.execute(AddMediaTask(this, src, null,
+                            copySrc = false,
+                            deleteSrc = false
+                    ))
                     val extras = data.getBundleExtra(MediaPickerActivity.EXTRA_EXTRAS)
-                    if (extras?.getBoolean(EXTRA_IS_POSSIBLY_SENSITIVE) ?: false) {
+                    if (extras?.getBoolean(EXTRA_IS_POSSIBLY_SENSITIVE) == true) {
                         possiblySensitive = true
                     }
                 }
@@ -411,9 +418,9 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             REQUEST_EXTENSION_COMPOSE -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
                     // The latter two is for compatibility
-                    val text = data.getCharSequenceExtra(Intent.EXTRA_TEXT) ?:
-                            data.getStringExtra(EXTRA_TEXT) ?:
-                            data.getStringExtra(EXTRA_APPEND_TEXT)
+                    val text = data.getCharSequenceExtra(Intent.EXTRA_TEXT)
+                            ?: data.getStringExtra(EXTRA_TEXT)
+                            ?: data.getStringExtra(EXTRA_APPEND_TEXT)
                     val isReplaceMode = data.getBooleanExtra(EXTRA_IS_REPLACE_MODE,
                             data.getStringExtra(EXTRA_APPEND_TEXT) == null)
                     if (text != null) {
@@ -427,10 +434,13 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
                         updateTextCount()
                     }
 
-                    val src = MediaPickerActivity.getMediaUris(data)?.takeIf(Array<Uri>::isNotEmpty) ?:
-                            data.getParcelableExtra<Uri>(EXTRA_IMAGE_URI)?.let { arrayOf(it) }
+                    val src = MediaPickerActivity.getMediaUris(data)?.takeIf(Array<Uri>::isNotEmpty)
+                            ?: data.getParcelableExtra<Uri>(EXTRA_IMAGE_URI)?.let { arrayOf(it) }
                     if (src != null) {
-                        TaskStarter.execute(AddMediaTask(this, src, null, false, false))
+                        TaskStarter.execute(AddMediaTask(this, src, null,
+                                copySrc = false,
+                                deleteSrc = false
+                        ))
                     }
                 }
             }
@@ -447,7 +457,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             REQUEST_ADD_GIF -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
                     val intent = ThemedMediaPickerActivity.withThemed(this@ComposeActivity)
-                            .getMedia(data.data)
+                            .getMedia(data.data!!)
                             .extras(Bundle {
                                 this[EXTRA_IS_POSSIBLY_SENSITIVE] = data.getBooleanExtra(EXTRA_IS_POSSIBLY_SENSITIVE, false)
                             })
@@ -508,7 +518,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             }
             replyLabel -> {
                 if (replyLabel.visibility != View.VISIBLE) return
-                replyLabel.setSingleLine(replyLabel.lineCount > 1)
+                replyLabel.isSingleLine = replyLabel.lineCount > 1
             }
         }
     }
@@ -610,8 +620,10 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             MotionEvent.ACTION_DOWN -> {
                 if (isAccountSelectorVisible && !TwidereViewUtils.hitView(ev, accountSelectorButton)) {
                     val layoutManager = accountSelector.layoutManager
+                            ?: return super.dispatchTouchEvent(ev)
                     val clickedItem = (0 until layoutManager.childCount).any {
-                        TwidereViewUtils.hitView(ev, layoutManager.getChildAt(it))
+                        val child = layoutManager.getChildAt(it)
+                        child != null && TwidereViewUtils.hitView(ev, child)
                     }
                     if (!clickedItem) {
                         isAccountSelectorVisible = false
@@ -703,11 +715,6 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         return super.handleKeyboardShortcutSingle(handler, keyCode, event, metaState)
     }
 
-    override fun handleKeyboardShortcutRepeat(handler: KeyboardShortcutsHandler, keyCode: Int,
-            repeatCount: Int, event: KeyEvent, metaState: Int): Boolean {
-        return super.handleKeyboardShortcutRepeat(handler, keyCode, repeatCount, event, metaState)
-    }
-
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         when (requestCode) {
             REQUEST_ATTACH_LOCATION_PERMISSION -> {
@@ -781,8 +788,10 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             requestOrUpdateLocation()
         } else if (locationListener != null) {
             try {
-                locationManager.removeUpdates(locationListener)
-                locationListener = null
+                locationListener?.let {
+                    locationManager.removeUpdates(it)
+                    locationListener = null
+                }
             } catch (e: SecurityException) {
                 //Ignore
             }
@@ -810,8 +819,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
     private fun extensionIntentItemSelected(item: MenuItem) {
         val intent = item.intent ?: return
         try {
-            val action = intent.action
-            when (action) {
+            when (intent.action) {
                 INTENT_ACTION_EXTENSION_COMPOSE -> {
                     val accountKeys = accountsAdapter.selectedAccountKeys
                     intent.putExtra(EXTRA_TEXT, ParseUtils.parseString(editText.text))
@@ -862,7 +870,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             accountsCount.setText(null)
 
             if (displayDoneIcon) {
-                Glide.clear(accountProfileImage)
+                Glide.with(this).clear(accountProfileImage)
                 accountProfileImage.setColorFilter(ThemeUtils.getColorFromAttribute(this,
                         android.R.attr.colorForeground))
                 accountProfileImage.scaleType = ImageView.ScaleType.CENTER_INSIDE
@@ -878,7 +886,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         } else {
             accountsCount.setText(accounts.size.toString())
 
-            Glide.clear(accountProfileImage)
+            Glide.with(this).clear(accountProfileImage)
             if (displayDoneIcon) {
                 accountProfileImage.setColorFilter(ThemeUtils.getColorFromAttribute(this,
                         android.R.attr.colorForeground))
@@ -1004,6 +1012,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             }
             AccountType.MASTODON -> {
                 addMastodonMentions(status.text_unescaped, status.spans, mentions)
+                mentions.remove("${accountUser.screen_name}@${accountUser.key.host}")
             }
             else -> if (status.mentions.isNotNullOrEmpty()) {
                 status.mentions.filterNot {
@@ -1085,17 +1094,21 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         if (intent == null) return false
         val action = intent.action
         val hasVisibility = intent.hasExtra(EXTRA_VISIBILITY)
-        val hasAccountKeys: Boolean
-        if (intent.hasExtra(EXTRA_ACCOUNT_KEYS)) {
-            val accountKeys = intent.getTypedArrayExtra<UserKey>(EXTRA_ACCOUNT_KEYS)
-            accountsAdapter.selectedAccountKeys = accountKeys
-            hasAccountKeys = true
-        } else if (intent.hasExtra(EXTRA_ACCOUNT_KEY)) {
-            val accountKey = intent.getParcelableExtra<UserKey>(EXTRA_ACCOUNT_KEY)
-            accountsAdapter.selectedAccountKeys = arrayOf(accountKey)
-            hasAccountKeys = true
-        } else {
-            hasAccountKeys = false
+        val hasAccountKeys: Boolean = when {
+            intent.hasExtra(EXTRA_ACCOUNT_KEYS) -> {
+                val accountKeys = intent.getTypedArrayExtra<UserKey>(EXTRA_ACCOUNT_KEYS)
+                accountsAdapter.selectedAccountKeys = accountKeys
+                true
+            }
+            intent.hasExtra(EXTRA_ACCOUNT_KEY) -> {
+                intent.getParcelableExtra<UserKey>(EXTRA_ACCOUNT_KEY)?.let {
+                    accountsAdapter.selectedAccountKeys = arrayOf(it)
+                    true
+                } ?: false
+            }
+            else -> {
+                false
+            }
         }
         when (action) {
             Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> {
@@ -1104,7 +1117,10 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
                 val stream = intent.getStreamExtra()
                 if (stream != null) {
                     val src = stream.toTypedArray()
-                    TaskStarter.execute(AddMediaTask(this, src, null, true, false))
+                    TaskStarter.execute(AddMediaTask(this, src, null,
+                            copySrc = true,
+                            deleteSrc = false
+                    ))
                 }
             }
             else -> {
@@ -1113,7 +1129,10 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
                 val data = intent.data
                 if (data != null) {
                     val src = arrayOf(data)
-                    TaskStarter.execute(AddMediaTask(this, src, null, true, false))
+                    TaskStarter.execute(AddMediaTask(this, src, null,
+                            copySrc = true,
+                            deleteSrc = false
+                    ))
                 }
             }
         }
@@ -1131,6 +1150,13 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         } else {
             editText.setSelection(selection.coerceIn(0..editText.length()))
         }
+        if (intent.hasExtra(Intent.EXTRA_PROCESS_TEXT) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+            val charSequences = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
+            charSequences?.let {
+                editText.setText(it.toString())
+            }
+        }
+        editText.requestFocus()
         return true
     }
 
@@ -1148,16 +1174,16 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             }
             INTENT_ACTION_EDIT_DRAFT -> {
                 val draft: Draft? = intent.getParcelableExtra(EXTRA_DRAFT)
-                when (draft?.action_type) {
+                return when (draft?.action_type) {
                     Draft.Action.REPLY -> {
-                        return showReplyLabelAndHint((draft.action_extras as? UpdateStatusActionExtras)?.inReplyToStatus)
+                        showReplyLabelAndHint((draft.action_extras as? UpdateStatusActionExtras)?.inReplyToStatus)
                     }
                     Draft.Action.QUOTE -> {
-                        return showQuoteLabelAndHint((draft.action_extras as? UpdateStatusActionExtras)?.inReplyToStatus)
+                        showQuoteLabelAndHint((draft.action_extras as? UpdateStatusActionExtras)?.inReplyToStatus)
                     }
                     else -> {
                         showDefaultLabelAndHint()
-                        return false
+                        false
                     }
                 }
             }
@@ -1224,7 +1250,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
     }
 
     private fun handleReplyMultipleIntent(screenNames: Array<String>?, accountKey: UserKey?,
-            inReplyToStatus: ParcelableStatus?): Boolean {
+                                          inReplyToStatus: ParcelableStatus?): Boolean {
         if (screenNames == null || screenNames.isEmpty() || accountKey == null ||
                 inReplyToStatus == null) return false
         val myScreenName = DataStoreUtils.getAccountScreenName(this, accountKey) ?: return false
@@ -1372,7 +1398,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         menu.setItemAvailability(R.id.attachment_visibility_submenu, hasAttachmentStatusVisibility)
         menu.setItemAvailability(R.id.location_submenu, hasLocationOption)
 
-        ThemeUtils.wrapMenuIcon(menuBar, excludeGroups = MENU_GROUP_IMAGE_EXTENSION)
+        ThemeUtils.wrapMenuIcon(menuBar, excludeGroups = *intArrayOf(MENU_GROUP_IMAGE_EXTENSION))
         ThemeUtils.resetCheatSheet(menuBar)
     }
 
@@ -1422,8 +1448,9 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         val provider = locationManager.getBestProvider(criteria, true)
         if (provider != null) {
             locationLabel.setText(R.string.getting_location)
-            locationListener = ComposeLocationListener(this)
-            locationManager.requestLocationUpdates(provider, 0, 0f, locationListener)
+            locationListener = ComposeLocationListener(this).also {
+                locationManager.requestLocationUpdates(provider, 0, 0f, it)
+            }
             val location = locationManager.getCachedLocation()
             if (location != null) {
                 locationListener?.onLocationChanged(location)
@@ -1510,7 +1537,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             return
         }
 
-        LengthyOperationsService.updateStatusesAsync(this, update.draft_action, statuses = update,
+        LengthyOperationsService.updateStatusesAsync(this, update.draft_action, statuses = *arrayOf(update),
                 scheduleInfo = scheduleInfo)
         finishComposing()
     }
@@ -1694,7 +1721,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
     }
 
     private fun getTwitterReplyTextAndMentions(text: String = editText.text?.toString().orEmpty(),
-            accounts: Array<AccountDetails> = accountsAdapter.selectedAccounts): ReplyTextAndMentions? {
+                                               accounts: Array<AccountDetails> = accountsAdapter.selectedAccounts): ReplyTextAndMentions? {
         val inReplyTo = inReplyToStatus ?: return null
         if (!ignoreMentions) return null
         val account = accounts.singleOrNull() ?: return null
@@ -1711,13 +1738,13 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             applyUpdateStatus(statusUpdate)
         }
         val values = ObjectCursor.valuesCreatorFrom(Draft::class.java).create(draft)
-        val draftUri = contentResolver.insert(Drafts.CONTENT_URI, values)
+        val draftUri = contentResolver.insert(Drafts.CONTENT_URI, values)!!
         displayNewDraftNotification(draftUri)
         return draftUri
     }
 
     private fun displayNewDraftNotification(draftUri: Uri) {
-        val notificationUri = Drafts.CONTENT_URI_NOTIFICATIONS.withAppendedPath(draftUri.lastPathSegment)
+        val notificationUri = Drafts.CONTENT_URI_NOTIFICATIONS.withAppendedPath(draftUri.lastPathSegment!!)
         contentResolver.insert(notificationUri, null)
     }
 
@@ -1783,11 +1810,11 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
                     val imageSpans = s.getSpans(start, start + count, ImageSpan::class.java)
                     val imageSources = ArrayList<String>()
                     for (imageSpan in imageSpans) {
-                        imageSources.add(imageSpan.source)
+                        imageSources.add(imageSpan.source!!)
                         s.setSpan(MarkForDeleteSpan(), start, start + count,
                                 Spanned.SPAN_INCLUSIVE_INCLUSIVE)
                     }
-                    if (!imageSources.isEmpty()) {
+                    if (imageSources.isNotEmpty()) {
                         val intent = ThemedMediaPickerActivity.withThemed(this@ComposeActivity)
                                 .getMedia(Uri.parse(imageSources[0]))
                                 .build()
@@ -1818,7 +1845,10 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         })
         editText.customSelectionActionModeCallback = this
         editText.imageInputListener = { contentInfo ->
-            val task = AddMediaTask(this, arrayOf(contentInfo.contentUri), null, true, false)
+            val task = AddMediaTask(this, arrayOf(contentInfo.contentUri), null,
+                    copySrc = true,
+                    deleteSrc = false
+            )
             task.callback = {
                 contentInfo.releasePermission()
             }
@@ -1841,8 +1871,8 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         }
 
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-            val context = activity
-            val builder = AlertDialog.Builder(context)
+            val context = requireActivity()
+            val builder = AlertDialog.Builder(requireContext())
             builder.setMessage(R.string.quote_protected_status_warning_message)
             builder.setPositiveButton(R.string.send_anyway, this)
             builder.setNegativeButton(android.R.string.cancel, null)
@@ -1854,7 +1884,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
 
     class DirectMessageConfirmFragment : BaseDialogFragment(), DialogInterface.OnClickListener {
 
-        private val screenName: String get() = arguments.getString(EXTRA_SCREEN_NAME)
+        private val screenName: String get() = arguments?.getString(EXTRA_SCREEN_NAME).orEmpty()
 
         override fun onClick(dialog: DialogInterface, which: Int) {
             val activity = activity
@@ -1875,8 +1905,8 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         }
 
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-            val context = activity
-            val builder = AlertDialog.Builder(context)
+            val context = requireActivity()
+            val builder = AlertDialog.Builder(requireContext())
             builder.setMessage(getString(R.string.message_format_compose_message_convert_to_status,
                     "@$screenName"))
             builder.setPositiveButton(R.string.action_send, this)
@@ -1888,7 +1918,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         }
     }
 
-    class AttachedMediaItemTouchHelperCallback(adapter: SimpleItemTouchHelperCallback.ItemTouchHelperAdapter) : SimpleItemTouchHelperCallback(adapter) {
+    class AttachedMediaItemTouchHelperCallback(adapter: ItemTouchHelperAdapter) : SimpleItemTouchHelperCallback(adapter) {
 
         override fun isLongPressDragEnabled(): Boolean {
             return true
@@ -1908,7 +1938,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         override fun onChildDraw(c: Canvas, recyclerView: RecyclerView, viewHolder: ViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
             if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
                 // Fade out the view as it is swiped out of the parent's bounds
-                val alpha = ALPHA_FULL - Math.abs(dY) / viewHolder.itemView.height.toFloat()
+                val alpha = ALPHA_FULL - abs(dY) / viewHolder.itemView.height.toFloat()
                 viewHolder.itemView.alpha = alpha
                 super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
             } else {
@@ -1916,17 +1946,17 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             }
         }
 
-        override fun getSwipeThreshold(viewHolder: ViewHolder?): Float {
+        override fun getSwipeThreshold(viewHolder: ViewHolder): Float {
             return 0.75f
         }
 
-        override fun clearView(recyclerView: RecyclerView?, viewHolder: ViewHolder) {
+        override fun clearView(recyclerView: RecyclerView, viewHolder: ViewHolder) {
             super.clearView(recyclerView, viewHolder)
             viewHolder.itemView.alpha = ALPHA_FULL
         }
 
         companion object {
-            val ALPHA_FULL = 1.0f
+            const val ALPHA_FULL = 1.0f
         }
     }
 
@@ -1998,7 +2028,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             set(value) {
                 selection.clear()
                 for (accountKey in value) {
-                    selection.put(accountKey, true)
+                    selection[accountKey] = true
                 }
                 notifyDataSetChanged()
             }
@@ -2036,7 +2066,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
         fun toggleSelection(position: Int) {
             if (accounts == null || position < 0) return
             val account = accounts!![position]
-            selection.put(account.key, true != selection[account.key])
+            selection[account.key] = true != selection[account.key]
             activity.updateAccountSelectionState()
             activity.updateVisibilityState()
             activity.updateSummaryTextState()
@@ -2048,7 +2078,7 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
             if (accounts == null || position < 0) return
             val account = accounts!![position]
             selection.clear()
-            selection.put(account.key, true != selection[account.key])
+            selection[account.key] = true != selection[account.key]
             activity.updateAccountSelectionState()
             activity.updateVisibilityState()
             activity.updateSummaryTextState()
@@ -2058,11 +2088,11 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
     }
 
     private class AddMediaTask(activity: ComposeActivity, sources: Array<Uri>, types: IntArray?,
-            copySrc: Boolean, deleteSrc: Boolean) : AbsAddMediaTask<((List<ParcelableMediaUpdate>?) -> Unit)?>(
+                               copySrc: Boolean, deleteSrc: Boolean) : AbsAddMediaTask<((List<ParcelableMediaUpdate>?) -> Unit)?>(
             activity, sources, types, copySrc, deleteSrc) {
 
         override fun afterExecute(callback: ((List<ParcelableMediaUpdate>?) -> Unit)?,
-                result: List<ParcelableMediaUpdate>?) {
+                                  result: List<ParcelableMediaUpdate>?) {
             callback?.invoke(result)
             val activity = context as? ComposeActivity ?: return
             activity.setProgressVisible(false)
@@ -2098,12 +2128,12 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
     private class DisplayPlaceNameTask : AbstractTask<ParcelableLocation, List<Address>, ComposeActivity>() {
 
         override fun doLongOperation(location: ParcelableLocation): List<Address>? {
-            try {
+            return try {
                 val activity = callback ?: throw IOException("Interrupted")
                 val gcd = Geocoder(activity, Locale.getDefault())
-                return gcd.getFromLocation(location.latitude, location.longitude, 1)
+                gcd.getFromLocation(location.latitude, location.longitude, 1)
             } catch (e: IOException) {
-                return null
+                null
             }
 
         }
@@ -2121,13 +2151,16 @@ class ComposeActivity : BaseActivity(), OnMenuItemClickListener, OnClickListener
                     textView.spannable = ParcelableLocationUtils.getHumanReadableString(location, 3)
                     textView.tag = location
                 } else {
-                    val tag = textView.tag
-                    if (tag is Address) {
-                        textView.spannable = tag.locality
-                    } else if (tag is NoAddress) {
-                        textView.setText(R.string.label_location_your_coarse_location)
-                    } else {
-                        textView.setText(R.string.getting_location)
+                    when (val tag = textView.tag) {
+                        is Address -> {
+                            textView.spannable = tag.locality
+                        }
+                        is NoAddress -> {
+                            textView.setText(R.string.label_location_your_coarse_location)
+                        }
+                        else -> {
+                            textView.setText(R.string.getting_location)
+                        }
                     }
                 }
             } else {

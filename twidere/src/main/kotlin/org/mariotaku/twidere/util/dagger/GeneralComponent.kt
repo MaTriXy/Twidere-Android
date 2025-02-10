@@ -20,7 +20,7 @@
 package org.mariotaku.twidere.util.dagger
 
 import android.content.Context
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import dagger.Component
 import org.mariotaku.twidere.activity.*
 import org.mariotaku.twidere.adapter.*
@@ -58,7 +58,7 @@ import javax.inject.Singleton
  * Created by mariotaku on 15/10/5.
  */
 @Singleton
-@Component(modules = arrayOf(ApplicationModule::class))
+@Component(modules = [ApplicationModule::class])
 interface GeneralComponent {
     fun inject(adapter: DummyItemAdapter)
 
@@ -143,8 +143,6 @@ interface GeneralComponent {
     fun inject(controller: PremiumDashboardActivity.BaseItemViewController)
 
     fun inject(fragment: ExoPlayerPageFragment)
-
-    fun inject(service: StreamingService)
 
     fun inject(service: BaseService)
 

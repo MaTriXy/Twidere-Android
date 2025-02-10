@@ -21,7 +21,8 @@ package org.mariotaku.twidere.fragment.statuses
 
 import android.content.Context
 import android.os.Bundle
-import android.support.v4.content.Loader
+import androidx.loader.app.LoaderManager
+import androidx.loader.content.Loader
 import org.mariotaku.twidere.TwidereConstants.*
 import org.mariotaku.twidere.fragment.AbsMediaStatusesFragment
 import org.mariotaku.twidere.loader.statuses.MediaStatusesSearchLoader
@@ -41,7 +42,7 @@ class MediaStatusesSearchFragment : AbsMediaStatusesFragment() {
         val tabPosition = args.getInt(EXTRA_TAB_POSITION, -1)
         val makeGap = args.getBoolean(EXTRA_MAKE_GAP, true)
         val loadingMore = args.getBoolean(EXTRA_LOADING_MORE, false)
-        return MediaStatusesSearchLoader(activity, accountKey, query, adapter.getData(), null, tabPosition,
+        return MediaStatusesSearchLoader(requireActivity(), accountKey, query, adapter.getData(), null, tabPosition,
                 fromUser, makeGap, loadingMore)
     }
 
@@ -52,7 +53,7 @@ class MediaStatusesSearchFragment : AbsMediaStatusesFragment() {
         args.putString(EXTRA_MAX_ID, maxId)
         args.putString(EXTRA_SINCE_ID, sinceId)
         args.putBoolean(EXTRA_FROM_USER, true)
-        loaderManager.restartLoader(loaderId, args, this)
+        LoaderManager.getInstance(this).restartLoader(loaderId, args, this)
         return 0
     }
 

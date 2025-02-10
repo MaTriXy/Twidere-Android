@@ -33,6 +33,10 @@ interface IStatusesAdapter<in Data> : IContentAdapter, IGapSupportedAdapter {
 
     val statusClickListener: IStatusViewHolder.StatusClickListener?
 
+    fun isCardNumbersShown(position: Int): Boolean
+    
+    fun isLinkPreviewShown(position: Int): Boolean
+
     fun isCardActionsShown(position: Int): Boolean
 
     fun showCardActions(position: Int)

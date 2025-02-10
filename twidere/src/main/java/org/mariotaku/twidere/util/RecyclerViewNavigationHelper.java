@@ -19,12 +19,12 @@
 
 package org.mariotaku.twidere.util;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.RecyclerView.Adapter;
-import android.support.v7.widget.RecyclerView.ViewHolder;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.RecyclerView.Adapter;
+import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 import android.view.KeyEvent;
 import android.view.View;
 
@@ -112,13 +112,11 @@ public class RecyclerViewNavigationHelper implements KeyboardShortcutCallback {
     public boolean handleKeyboardShortcutSingle(@NonNull KeyboardShortcutsHandler handler, int keyCode, @NonNull KeyEvent event, int metaState) {
         final String action = handler.getKeyAction(CONTEXT_TAG_NAVIGATION, keyCode, event, metaState);
         if (action == null) return false;
-        switch (action) {
-            case ACTION_NAVIGATION_TOP: {
-                if (iface != null) {
-                    iface.scrollToStart();
-                }
-                return true;
+        if (ACTION_NAVIGATION_TOP.equals(action)) {
+            if (iface != null) {
+                iface.scrollToStart();
             }
+            return true;
         }
         return false;
     }

@@ -33,11 +33,10 @@
 
     <include layout="@layout/layout_empty_tab_hint"/>
 
-    <android.support.v7.widget.Toolbar
+    <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?actionBarSize"
-        android:layout_alignParentTop="true"
         android:background="?colorToolbar"
         android:elevation="@dimen/toolbar_elevation"
         app:contentInsetEnd="0dp"
@@ -67,7 +66,7 @@
                 app:tabHorizontalPadding="@dimen/element_spacing_normal"
                 tools:listitem="@layout/layout_tab_item"/>
         </LinearLayout>
-    </android.support.v7.widget.Toolbar>
+    </androidx.appcompat.widget.Toolbar>
 
     <View
         android:id="@+id/windowOverlay"
@@ -76,11 +75,10 @@
         android:layout_below="@+id/toolbar"
         android:background="?android:windowContentOverlay"/>
 
-    <android.support.design.widget.FloatingActionButton
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/actionsButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
         android:layout_margin="@dimen/element_spacing_large"

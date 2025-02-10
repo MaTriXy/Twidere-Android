@@ -20,7 +20,7 @@
 package org.mariotaku.twidere.model.notification
 
 import android.app.NotificationManager
-import android.support.annotation.StringRes
+import androidx.annotation.StringRes
 import org.mariotaku.twidere.R
 
 /**
@@ -45,13 +45,6 @@ enum class NotificationChannelSpec(
      * Such as sending attachment process.
      */
     backgroundProgresses("background_progresses", R.string.notification_channel_name_background_progresses,
-            importance = NotificationManager.IMPORTANCE_MIN),
-
-    /**
-     * For ongoing notifications indicating service statuses.
-     * Such as notification showing streaming service running
-     */
-    serviceStatuses("service_statuses", R.string.notification_channel_name_service_statuses,
             importance = NotificationManager.IMPORTANCE_MIN),
 
     /**

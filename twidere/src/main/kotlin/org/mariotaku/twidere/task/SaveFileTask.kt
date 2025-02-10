@@ -54,7 +54,7 @@ abstract class SaveFileTask(
 
     override fun onPostExecute(result: SaveFileResult?) {
         dismissProgress()
-        if (result != null && result.savedFile != null) {
+        if (result?.savedFile != null) {
             onFileSaved(result.savedFile!!, result.mimeType)
         } else {
             onFileSaveFailed()
@@ -144,18 +144,15 @@ abstract class SaveFileTask(
         internal fun getFileNameWithExtension(name: String, extension: String?,
                 specialCharacter: Char, suffix: String?): String {
             val sb = StringBuilder()
-            var end = name.length
             if (extension != null) {
-                if (name.endsWith(extension)) {
-                    for (i in end - extension.length - 1 downTo 0) {
-                        if (name[i] != specialCharacter) {
-                            end = i + 1
-                            break
-                        }
-                    }
-                }
+                sb.append(name
+                        .removeSuffix(extension)
+                        .removeSuffix(".")
+                        .removeSuffix(specialCharacter.toString())
+                        .takeLastWhile { it != specialCharacter })
+            } else {
+                sb.append(name)
             }
-            sb.append(name, 0, end)
             if (suffix != null) {
                 sb.append(suffix)
             }

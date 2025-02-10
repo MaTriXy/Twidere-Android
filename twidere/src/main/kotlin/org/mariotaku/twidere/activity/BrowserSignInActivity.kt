@@ -70,7 +70,7 @@ class BrowserSignInActivity : BaseActivity() {
             setSupportMultipleWindows(true)
         }
 
-        webView.loadUrl(intent.dataString)
+        intent.dataString?.let { webView.loadUrl(it) }
     }
 
     override fun onDestroy() {
@@ -265,7 +265,8 @@ class BrowserSignInActivity : BaseActivity() {
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
             val dialog = super.onCreateDialog(savedInstanceState)
             dialog.onShow {
-                it.window.attributes = it.window.attributes?.apply {
+                val window = it.window ?: return@onShow
+                window.attributes = window.attributes?.apply {
                     width = WindowManager.LayoutParams.MATCH_PARENT
                 }
 

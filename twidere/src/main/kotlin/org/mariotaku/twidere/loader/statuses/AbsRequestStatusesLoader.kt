@@ -22,7 +22,7 @@ package org.mariotaku.twidere.loader.statuses
 import android.accounts.AccountManager
 import android.content.Context
 import android.content.SharedPreferences
-import android.support.annotation.WorkerThread
+import androidx.annotation.WorkerThread
 import org.mariotaku.kpreferences.get
 import org.mariotaku.microblog.library.MicroBlogException
 import org.mariotaku.microblog.library.twitter.model.Paging
@@ -50,6 +50,7 @@ import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
+import kotlin.math.min
 
 abstract class AbsRequestStatusesLoader(
         context: Context,
@@ -102,7 +103,7 @@ abstract class AbsRequestStatusesLoader(
     }
 
     @SuppressWarnings("unchecked")
-    override final fun loadInBackground(): ListResponse<ParcelableStatus> {
+    final override fun loadInBackground(): ListResponse<ParcelableStatus> {
         val context = context
         val comparator = this.comparator
         val accountKey = accountKey ?: return ListResponse.getListInstance<ParcelableStatus>(MicroBlogException("No Account"))
@@ -183,7 +184,7 @@ abstract class AbsRequestStatusesLoader(
         return ListResponse.getListInstance(data)
     }
 
-    override final fun onStartLoading() {
+    final override fun onStartLoading() {
         exception = null
         super.onStartLoading()
     }
@@ -197,8 +198,7 @@ abstract class AbsRequestStatusesLoader(
     }
 
     protected open fun List<ParcelableStatus>.foundInPagination(): Boolean {
-        val pagination = this@AbsRequestStatusesLoader.pagination
-        return when (pagination) {
+        return when (val pagination = this@AbsRequestStatusesLoader.pagination) {
             is SinceMaxPagination -> return any { it.id == pagination.maxId }
             else -> false
         }
@@ -212,7 +212,7 @@ abstract class AbsRequestStatusesLoader(
         if (key == null || data == null) return
         val databaseItemLimit = preferences[loadItemLimitKey]
         try {
-            val statuses = data.subList(0, Math.min(databaseItemLimit, data.size))
+            val statuses = data.subList(0, min(databaseItemLimit, data.size))
             jsonCache.saveList(key, statuses, ParcelableStatus::class.java)
         } catch (e: Exception) {
             // Ignore

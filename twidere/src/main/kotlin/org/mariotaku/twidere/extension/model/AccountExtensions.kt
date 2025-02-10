@@ -5,7 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.support.annotation.RequiresApi
+import androidx.annotation.RequiresApi
 import android.text.TextUtils
 import org.mariotaku.ktextension.HexColorFormat
 import org.mariotaku.ktextension.toHexColor
@@ -38,7 +38,7 @@ fun Account.getCredentials(am: AccountManager): Credentials {
             if (token != null) return@run token
         }
         return@run null
-    } ?: throw NullPointerException("AuthToken is null for ${this}")
+    } ?: throw NullPointerException("AuthToken is null for $this")
     return parseCredentials(authToken, getCredentialsType(am))
 }
 
@@ -65,7 +65,7 @@ fun Account.setAccountUser(am: AccountManager, user: ParcelableUser) {
     am.setUserData(this, ACCOUNT_USER_DATA_USER, JsonSerializer.serialize(user))
 }
 
-@android.support.annotation.ColorInt
+@androidx.annotation.ColorInt
 fun Account.getColor(am: AccountManager): Int {
     return ParseUtils.parseColor(AccountDataQueue.getUserData(am, this, ACCOUNT_USER_DATA_COLOR), 0)
 }
@@ -175,10 +175,10 @@ internal object AccountDataQueue {
             return callable.call()
         }
         val future = executor.submit(callable)
-        try {
-            return future.get(1, TimeUnit.SECONDS)
+        return try {
+            future.get(1, TimeUnit.SECONDS)
         } catch (e: TimeoutException) {
-            return manager.getUserData(account, key)
+            manager.getUserData(account, key)
         }
     }
 
@@ -190,10 +190,10 @@ internal object AccountDataQueue {
             return callable.call()
         }
         val future = executor.submit(callable)
-        try {
-            return future.get(1, TimeUnit.SECONDS)
+        return try {
+            future.get(1, TimeUnit.SECONDS)
         } catch (e: TimeoutException) {
-            return manager.peekAuthToken(account, authTokenType)
+            manager.peekAuthToken(account, authTokenType)
         }
     }
 }

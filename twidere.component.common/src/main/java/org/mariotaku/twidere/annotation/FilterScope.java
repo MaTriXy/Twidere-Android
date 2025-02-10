@@ -19,7 +19,7 @@
 
 package org.mariotaku.twidere.annotation;
 
-import android.support.annotation.IntDef;
+import androidx.annotation.IntDef;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -56,6 +56,5 @@ public @interface FilterScope {
 
     // Contains all flags
     int ALL = 0xFFFFFFFF;
-    @SuppressWarnings("PointlessBitwiseExpression")
     int DEFAULT = ALL & ~(TARGET_NAME | TARGET_DESCRIPTION);
 }

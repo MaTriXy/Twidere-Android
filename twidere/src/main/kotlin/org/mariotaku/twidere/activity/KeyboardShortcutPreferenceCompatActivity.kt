@@ -111,7 +111,7 @@ class KeyboardShortcutPreferenceCompatActivity : BaseActivity(), OnClickListener
         return true
     }
 
-    private val contextTag: String
+    private val contextTag: String?
         get() = intent.getStringExtra(EXTRA_CONTEXT_TAG)
 
     private val keyAction: String?
@@ -119,7 +119,7 @@ class KeyboardShortcutPreferenceCompatActivity : BaseActivity(), OnClickListener
 
     companion object {
 
-        val EXTRA_CONTEXT_TAG = "context_tag"
-        val EXTRA_KEY_ACTION = "key_action"
+        const val EXTRA_CONTEXT_TAG = "context_tag"
+        const val EXTRA_KEY_ACTION = "key_action"
     }
 }

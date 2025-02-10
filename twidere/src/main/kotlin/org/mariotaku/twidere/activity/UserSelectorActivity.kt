@@ -22,8 +22,8 @@ package org.mariotaku.twidere.activity
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.support.v4.app.LoaderManager
-import android.support.v4.content.Loader
+import androidx.loader.app.LoaderManager
+import androidx.loader.content.Loader
 import android.text.TextUtils.isEmpty
 import android.view.View
 import android.widget.AdapterView
@@ -107,14 +107,17 @@ class UserSelectorActivity : BaseActivity(), OnItemClickListener, LoaderManager.
         finish()
     }
 
-    override fun onCreateLoader(id: Int, args: Bundle): Loader<List<ParcelableUser>> {
-        val accountKey = args.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY)
-        val query = args.getString(EXTRA_QUERY)
+    override fun onCreateLoader(id: Int, args: Bundle?): Loader<List<ParcelableUser>> {
+        val accountKey = args?.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY)!!
+        val query = args.getString(EXTRA_QUERY).orEmpty()
         val fromCache = args.getBoolean(EXTRA_FROM_CACHE)
         if (!fromCache) {
             showProgress()
         }
-        return CacheUserSearchLoader(this, accountKey, query, !fromCache, true, true)
+        return CacheUserSearchLoader(this, accountKey, query, !fromCache,
+            fromCache = true,
+            fromUser = true
+        )
     }
 
     override fun onLoaderReset(loader: Loader<List<ParcelableUser>>) {
@@ -126,12 +129,16 @@ class UserSelectorActivity : BaseActivity(), OnItemClickListener, LoaderManager.
         listContainer.visibility = View.VISIBLE
         adapter.setData(data, true)
         loader as CacheUserSearchLoader
-        if (data.isNotNullOrEmpty()) {
-            showList()
-        } else if (loader.query.isEmpty()) {
-            showSearchHint()
-        } else {
-            showNotFound()
+        when {
+            data.isNotNullOrEmpty() -> {
+                showList()
+            }
+            loader.query.isEmpty() -> {
+                showSearchHint()
+            }
+            else -> {
+                showNotFound()
+            }
         }
     }
 
@@ -146,10 +153,10 @@ class UserSelectorActivity : BaseActivity(), OnItemClickListener, LoaderManager.
             this[EXTRA_FROM_CACHE] = fromCache
         }
         if (loaderInitialized) {
-            supportLoaderManager.initLoader(0, args, this)
+            LoaderManager.getInstance(this).initLoader(0, args, this)
             loaderInitialized = true
         } else {
-            supportLoaderManager.restartLoader(0, args, this)
+            LoaderManager.getInstance(this).restartLoader(0, args, this)
         }
     }
 

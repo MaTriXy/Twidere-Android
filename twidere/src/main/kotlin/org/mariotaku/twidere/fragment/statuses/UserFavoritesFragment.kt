@@ -21,7 +21,7 @@ package org.mariotaku.twidere.fragment.statuses
 
 import android.content.Context
 import android.os.Bundle
-import android.support.v4.content.Loader
+import androidx.loader.content.Loader
 import org.mariotaku.twidere.TwidereConstants.*
 import org.mariotaku.twidere.fragment.ParcelableStatusesFragment
 import org.mariotaku.twidere.loader.statuses.UserFavoritesLoader
@@ -38,36 +38,47 @@ class UserFavoritesFragment : ParcelableStatusesFragment() {
 
     override val savedStatusesFileArgs: Array<String>?
         get() {
+            val arguments = arguments ?: return null
+            val context = context ?: return null
             val accountKey = Utils.getAccountKey(context, arguments)
             val userKey = arguments.getParcelable<UserKey>(EXTRA_USER_KEY)
             val screenName = arguments.getString(EXTRA_SCREEN_NAME)
             val result = ArrayList<String>()
             result.add(AUTHORITY_USER_FAVORITES)
             result.add("account=$accountKey")
-            if (userKey != null) {
-                result.add("user_id=$userKey")
-            } else if (screenName != null) {
-                result.add("screen_name=$screenName")
-            } else {
-                return null
+            when {
+                userKey != null -> {
+                    result.add("user_id=$userKey")
+                }
+                screenName != null -> {
+                    result.add("screen_name=$screenName")
+                }
+                else -> {
+                    return null
+                }
             }
             return result.toTypedArray()
         }
 
     override val readPositionTagWithArguments: String?
         get() {
+            val arguments = arguments ?: return null
             val tabPosition = arguments.getInt(EXTRA_TAB_POSITION, -1)
             val sb = StringBuilder("user_favorites_")
             if (tabPosition < 0) return null
 
             val userKey = arguments.getParcelable<UserKey>(EXTRA_USER_KEY)
             val screenName = arguments.getString(EXTRA_SCREEN_NAME)
-            if (userKey != null) {
-                sb.append(userKey)
-            } else if (screenName != null) {
-                sb.append(screenName)
-            } else {
-                return null
+            when {
+                userKey != null -> {
+                    sb.append(userKey)
+                }
+                screenName != null -> {
+                    sb.append(screenName)
+                }
+                else -> {
+                    return null
+                }
             }
             return sb.toString()
         }
@@ -87,7 +98,7 @@ class UserFavoritesFragment : ParcelableStatusesFragment() {
     override fun notifyFavoriteTask(event: FavoriteTaskEvent) {
         if (event.action == FavoriteTaskEvent.Action.DESTROY && event.isSucceeded) {
             event.status?.let { status ->
-                val args = arguments!!
+                val args = requireArguments()
                 val userKey = args.getParcelable<UserKey>(EXTRA_USER_KEY)
                 if (status.account_key == userKey) {
                     removeStatus(event.statusId)

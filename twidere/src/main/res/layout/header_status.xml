@@ -290,11 +290,18 @@
 
     </FrameLayout>
 
+    <org.mariotaku.twidere.view.LinkPreviewView
+        android:id="@+id/linkPreview"
+        android:layout_margin="@dimen/element_spacing_normal"
+        android:layout_below="@+id/mediaPreviewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
     <org.mariotaku.twidere.view.TwitterCardContainer
         android:id="@+id/twitterCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/mediaPreviewContainer"
+        android:layout_below="@+id/linkPreview"
         android:visibility="gone"/>
 
     <org.mariotaku.twidere.view.ColorLabelLinearLayout
@@ -408,7 +415,7 @@
         <include layout="@layout/adapter_item_status_interact_user"/>
     </LinearLayout>
 
-    <android.support.v7.widget.RecyclerView
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/countsUsers"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -420,7 +427,7 @@
         android:splitMotionEvents="false"
         tools:visibility="invisible"/>
 
-    <android.support.v7.widget.TwidereActionMenuView
+    <androidx.appcompat.widget.TwidereActionMenuView
         android:id="@+id/menuBar"
         android:layout_width="match_parent"
         android:layout_height="?android:actionBarSize"

@@ -20,11 +20,11 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.RecyclerView.Adapter;
-import android.support.v7.widget.RecyclerView.State;
-import android.support.v7.widget.TintTypedArray;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.RecyclerView.Adapter;
+import androidx.recyclerview.widget.RecyclerView.State;
+import androidx.appcompat.widget.TintTypedArray;
 import android.view.View;
 
 public class ExtendedDividerItemDecoration extends RecyclerView.ItemDecoration {
@@ -84,12 +84,9 @@ public class ExtendedDividerItemDecoration extends RecyclerView.ItemDecoration {
     }
 
     public void setPadding(final int left, final int top, final int right, final int bottom) {
-        mPadding = new Padding() {
-            @Override
-            public boolean get(int position, Rect rect) {
-                rect.set(left, top, right, bottom);
-                return true;
-            }
+        mPadding = (position, rect) -> {
+            rect.set(left, top, right, bottom);
+            return true;
         };
     }
 

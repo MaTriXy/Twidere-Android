@@ -22,13 +22,12 @@ package org.mariotaku.twidere.activity
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.support.v4.app.LoaderManager
-import android.support.v4.app.hasRunningLoadersSafe
-import android.support.v4.content.Loader
+import androidx.loader.app.LoaderManager
+import androidx.loader.content.Loader
 import android.view.View
 import android.widget.AdapterView.OnItemClickListener
 import android.widget.TextView
-import com.bumptech.glide.Glide
+import androidx.loader.app.hasRunningLoadersSafe
 import kotlinx.android.synthetic.main.layout_list_with_empty_view.*
 import org.mariotaku.ktextension.Bundle
 import org.mariotaku.ktextension.contains
@@ -56,7 +55,7 @@ class UserListSelectorActivity : BaseActivity(),
 
     override var refreshing: Boolean
         get() {
-            return supportLoaderManager.hasRunningLoadersSafe()
+            return LoaderManager.getInstance(this).hasRunningLoadersSafe()
         }
         set(value) {
         }
@@ -96,8 +95,7 @@ class UserListSelectorActivity : BaseActivity(),
         listView.setOnScrollListener(handler)
         listView.setOnTouchListener(handler.touchListener)
         listView.onItemClickListener = OnItemClickListener { view, _, position, _ ->
-            val item = view.getItemAtPosition(position)
-            when (item) {
+            when (val item = view.getItemAtPosition(position)) {
                 is ParcelableUserList -> {
                     val data = Intent()
                     data.putExtra(EXTRA_USER_LIST, item)
@@ -135,30 +133,31 @@ class UserListSelectorActivity : BaseActivity(),
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
             REQUEST_SELECT_USER -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
-                    val user = data.getParcelableExtra<ParcelableUser>(EXTRA_USER)
+                    val user = data.getParcelableExtra<ParcelableUser>(EXTRA_USER) ?: return
                     loadUserLists(accountKey!!, user.key)
                 }
             }
         }
     }
 
-    override fun onCreateLoader(id: Int, args: Bundle): Loader<List<ParcelableUserList>> {
-        val accountKey = args.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY)
-        val userKey = args.getParcelable<UserKey>(EXTRA_USER_KEY)
+    override fun onCreateLoader(id: Int, args: Bundle?): Loader<List<ParcelableUserList>> {
+        val accountKey = args?.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY)
+        val userKey = args?.getParcelable<UserKey>(EXTRA_USER_KEY)
         return UserListOwnershipsLoader(this, accountKey, userKey, null, adapter.all).apply {
-            pagination = args.getParcelable(EXTRA_PAGINATION)
+            pagination = args?.getParcelable(EXTRA_PAGINATION)
         }
     }
 
-    override fun onLoaderReset(loader: Loader<List<ParcelableUserList>>?) {
+    override fun onLoaderReset(loader: Loader<List<ParcelableUserList>>) {
         adapter.setData(null)
     }
 
 
-    override fun onLoadFinished(loader: Loader<List<ParcelableUserList>>?, data: List<ParcelableUserList>?) {
+    override fun onLoadFinished(loader: Loader<List<ParcelableUserList>>, data: List<ParcelableUserList>) {
         adapter.loadMoreIndicatorPosition = ILoadMoreSupportAdapter.NONE
         adapter.loadMoreSupportedPosition = if (adapter.all != data) {
             ILoadMoreSupportAdapter.END
@@ -200,9 +199,9 @@ class UserListSelectorActivity : BaseActivity(),
         }
         if (!loaderInitialized) {
             loaderInitialized = true
-            supportLoaderManager.initLoader(0, args, this)
+            LoaderManager.getInstance(this).initLoader(0, args, this)
         } else {
-            supportLoaderManager.restartLoader(0, args, this)
+            LoaderManager.getInstance(this).restartLoader(0, args, this)
         }
     }
 

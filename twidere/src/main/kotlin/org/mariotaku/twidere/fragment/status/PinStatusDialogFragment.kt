@@ -20,7 +20,7 @@
 package org.mariotaku.twidere.fragment.status
 
 import android.os.Bundle
-import android.support.v4.app.FragmentManager
+import androidx.fragment.app.FragmentManager
 import org.mariotaku.abstask.library.TaskStarter
 import org.mariotaku.twidere.R
 import org.mariotaku.twidere.constant.IntentConstants.EXTRA_STATUS
@@ -35,13 +35,13 @@ class PinStatusDialogFragment : AbsSimpleStatusOperationDialogFragment() {
         get() = getString(R.string.message_pin_status_confirm)
 
     override fun onPerformAction(status: ParcelableStatus) {
-        val task = PinStatusTask(context, status.account_key, status.id)
+        val task = PinStatusTask(requireContext(), status.account_key, status.id)
         TaskStarter.execute(task)
     }
 
     companion object {
 
-        val FRAGMENT_TAG = "pin_status"
+        const val FRAGMENT_TAG = "pin_status"
 
         fun show(fm: FragmentManager, status: ParcelableStatus): PinStatusDialogFragment {
             val args = Bundle()

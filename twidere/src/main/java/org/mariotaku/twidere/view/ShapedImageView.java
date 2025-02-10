@@ -33,10 +33,10 @@ import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
 import android.graphics.SweepGradient;
 import android.os.Build;
-import android.support.annotation.FloatRange;
-import android.support.annotation.NonNull;
-import android.support.v4.view.ViewCompat;
-import android.support.v7.widget.AppCompatImageView;
+import androidx.annotation.FloatRange;
+import androidx.annotation.NonNull;
+import androidx.core.view.ViewCompat;
+import androidx.appcompat.widget.AppCompatImageView;
 import android.util.AttributeSet;
 import android.view.View;
 
@@ -196,17 +196,14 @@ public class ShapedImageView extends AppCompatImageView {
                 contentHeight = contentBottom - contentTop;
         final int size = Math.min(contentWidth, contentHeight);
 
-        if (OUTLINE_DRAW) {
-            drawShape(canvas, mDestination, 0, mBackgroundPaint);
-            super.onDraw(canvas);
-        } else {
+        if (!OUTLINE_DRAW) {
             if (mShadowBitmap != null && mDrawShadow) {
                 canvas.drawBitmap(mShadowBitmap, contentLeft + (contentWidth - size) / 2 - mShadowRadius,
                         contentTop + (contentHeight - size) / 2 - mShadowRadius, null);
             }
-            drawShape(canvas, mDestination, 0, mBackgroundPaint);
-            super.onDraw(canvas);
         }
+        drawShape(canvas, mDestination, 0, mBackgroundPaint);
+        super.onDraw(canvas);
         // Then draw the border.
         if (mBorderEnabled) {
             drawBorder(canvas, mDestination);

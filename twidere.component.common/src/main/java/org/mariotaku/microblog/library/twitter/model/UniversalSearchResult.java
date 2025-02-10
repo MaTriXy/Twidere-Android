@@ -18,7 +18,7 @@
 
 package org.mariotaku.microblog.library.twitter.model;
 
-import android.support.annotation.StringDef;
+import androidx.annotation.StringDef;
 
 import com.bluelinelabs.logansquare.annotation.JsonField;
 import com.bluelinelabs.logansquare.annotation.JsonObject;
@@ -250,7 +250,7 @@ public class UniversalSearchResult {
                                 index.end = jsonParser.nextIntValue(-1);
                                 list.add(index);
                             }
-                            return list.toArray(new Index[list.size()]);
+                            return list.toArray(new Index[0]);
                         }
 
                         @Override

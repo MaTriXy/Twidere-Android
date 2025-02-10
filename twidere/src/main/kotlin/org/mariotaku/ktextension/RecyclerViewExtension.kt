@@ -1,6 +1,6 @@
 package org.mariotaku.ktextension
 
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 
 /**
  * Created by mariotaku on 16/8/21.

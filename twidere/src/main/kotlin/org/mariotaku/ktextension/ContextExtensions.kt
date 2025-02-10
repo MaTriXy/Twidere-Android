@@ -3,7 +3,7 @@ package org.mariotaku.ktextension
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.pm.PackageManager
-import android.support.v4.content.ContextCompat
+import androidx.core.content.ContextCompat
 import java.io.File
 
 /**
@@ -20,11 +20,11 @@ fun Context.checkAnySelfPermissionsGranted(vararg permissions: String): Boolean 
 
 fun Context.unregisterReceiverSafe(receiver: BroadcastReceiver?): Boolean {
     if (receiver == null) return false
-    try {
+    return try {
         unregisterReceiver(receiver)
-        return true
+        true
     } catch (e: IllegalArgumentException) {
-        return false
+        false
     }
 }
 

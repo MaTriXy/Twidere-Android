@@ -18,7 +18,7 @@
 
 package org.mariotaku.microblog.library.twitter.model;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.bluelinelabs.logansquare.LoganSquare;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -64,7 +64,7 @@ public class CardDataMap implements ValueMap {
     @Override
     public String[] keys() {
         final Set<String> keySet = map.keySet();
-        return keySet.toArray(new String[keySet.size()]);
+        return keySet.toArray(new String[0]);
     }
 
     @Override

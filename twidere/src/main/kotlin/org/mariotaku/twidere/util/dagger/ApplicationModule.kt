@@ -25,15 +25,15 @@ import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Looper
-import android.support.v4.net.ConnectivityManagerCompat
-import android.support.v4.text.BidiFormatter
+import androidx.core.net.ConnectivityManagerCompat
+import androidx.core.text.BidiFormatter
 import com.google.android.exoplayer2.ext.okhttp.OkHttpDataSourceFactory
 import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory
 import com.google.android.exoplayer2.extractor.ExtractorsFactory
 import com.google.android.exoplayer2.upstream.DataSource
 import com.squareup.otto.Bus
 import com.squareup.otto.ThreadEnforcer
-import com.twitter.Extractor
+import com.twitter.twittertext.Extractor
 import dagger.Module
 import dagger.Provides
 import okhttp3.Cache
@@ -301,7 +301,7 @@ class ApplicationModule(private val context: Context) {
         val builder = OkHttpClient.Builder()
         HttpClientFactory.initOkHttpClient(conf, builder, dns, connectionPool, cache)
         val userAgent = UserAgentUtils.getDefaultUserAgentStringSafe(context)
-        return OkHttpDataSourceFactory(builder.build(), userAgent, null)
+        return OkHttpDataSourceFactory(builder.build(), userAgent)
     }
 
     @Provides

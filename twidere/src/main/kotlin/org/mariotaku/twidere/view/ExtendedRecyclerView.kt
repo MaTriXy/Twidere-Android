@@ -23,7 +23,7 @@ import android.annotation.TargetApi
 import android.content.Context
 import android.graphics.Rect
 import android.os.Build
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.*
@@ -136,7 +136,7 @@ class ExtendedRecyclerView(context: Context, attrs: AttributeSet? = null) :
             return false
         }
         val position = getChildLayoutPosition(originalView)
-        if (position == RecyclerView.NO_POSITION) return false
+        if (position == NO_POSITION) return false
         contextMenuInfo = ContextMenuInfo(id, position)
         return super.showContextMenuForChild(originalView)
     }

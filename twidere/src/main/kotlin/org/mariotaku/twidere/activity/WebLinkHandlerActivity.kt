@@ -36,7 +36,7 @@ class WebLinkHandlerActivity : Activity() {
             return
         }
 
-        val (handledIntent, handledSuccessfully) = when (uri.host.toLowerCase(Locale.US)) {
+        val (handledIntent, handledSuccessfully) = when (uri.host?.toLowerCase(Locale.US)) {
             "twitter.com", "www.twitter.com", "mobile.twitter.com" -> handleTwitterLink(regulateTwitterUri(uri))
             "fanfou.com" -> handleFanfouLink(uri)
             "twidere.org", "twidere.mariotaku.org" -> handleTwidereExternalLink(uri)
@@ -47,7 +47,7 @@ class WebLinkHandlerActivity : Activity() {
             startActivity(handledIntent)
         } else {
             if (!handledSuccessfully) {
-                Analyzer.logException(TwitterLinkException("Unable to handle twitter uri " + uri))
+                Analyzer.logException(TwitterLinkException("Unable to handle twitter uri $uri"))
             }
             val fallbackIntent = Intent(Intent.ACTION_VIEW, uri)
             fallbackIntent.addCategory(Intent.CATEGORY_BROWSABLE)
@@ -177,7 +177,7 @@ class WebLinkHandlerActivity : Activity() {
                     if (pathSegments[0] in TWITTER_RESERVED_PATHS) {
                         return Pair(null, true)
                     }
-                    return handleUserSpecificPageIntent(uri, pathSegments, pathSegments[0])
+                    return handleUserSpecificPageIntent(pathSegments, pathSegments[0])
                 }
             }
         }
@@ -185,7 +185,7 @@ class WebLinkHandlerActivity : Activity() {
         return Pair(homeIntent, true)
     }
 
-    private fun handleUserSpecificPageIntent(uri: Uri, pathSegments: List<String>, screenName: String): Pair<Intent?, Boolean> {
+    private fun handleUserSpecificPageIntent(pathSegments: List<String>, screenName: String): Pair<Intent?, Boolean> {
         val segsSize = pathSegments.size
         if (segsSize == 1) {
             val builder = Uri.Builder()
@@ -277,7 +277,7 @@ class WebLinkHandlerActivity : Activity() {
                     sb.append(text)
                 }
                 if (!url.isNullOrEmpty()) {
-                    if (!sb.isEmpty()) {
+                    if (sb.isNotEmpty()) {
                         sb.append(" ")
                     }
                     sb.append(url)
@@ -366,7 +366,7 @@ class WebLinkHandlerActivity : Activity() {
                 "photo", "album", "paipai", "q", "userview", "dialogue")
 
 
-        private val AUTHORITY_TWITTER_COM = "twitter.com"
+        private const val AUTHORITY_TWITTER_COM = "twitter.com"
 
 
         private fun regulateTwitterUri(data: Uri): Uri {

@@ -21,7 +21,7 @@ package org.mariotaku.twidere.util.schedule
 
 import android.content.Context
 import android.content.Intent
-import android.support.annotation.WorkerThread
+import androidx.annotation.WorkerThread
 import org.mariotaku.twidere.model.ParcelableStatusUpdate
 import org.mariotaku.twidere.model.schedule.ScheduleInfo
 import org.mariotaku.twidere.task.twitter.UpdateStatusTask
@@ -64,7 +64,7 @@ interface StatusScheduleProvider {
     }
 
     private object NullFactory : Factory {
-        override fun newInstance(context: Context) = null
+        override fun newInstance(context: Context): Nothing? = null
 
         override fun parseInfo(json: String): ScheduleInfo? = null
 

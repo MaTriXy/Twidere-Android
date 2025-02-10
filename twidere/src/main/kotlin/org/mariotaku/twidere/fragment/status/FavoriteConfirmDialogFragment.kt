@@ -23,7 +23,8 @@ import android.app.Dialog
 import android.content.DialogInterface
 import android.content.DialogInterface.BUTTON_POSITIVE
 import android.os.Bundle
-import android.support.v7.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.FragmentManager
 import org.mariotaku.kpreferences.get
 import org.mariotaku.ktextension.Bundle
 import org.mariotaku.ktextension.set
@@ -84,11 +85,11 @@ class FavoriteConfirmDialogFragment : AbsStatusDialogFragment() {
 
     }
 
-    override fun onCancel(dialog: DialogInterface?) {
+    override fun onCancel(dialog: DialogInterface) {
         finishFavoriteConfirmActivity()
     }
 
-    override fun onDismiss(dialog: DialogInterface?) {
+    override fun onDismiss(dialog: DialogInterface) {
         super.onDismiss(dialog)
         finishFavoriteConfirmActivity()
     }
@@ -102,17 +103,17 @@ class FavoriteConfirmDialogFragment : AbsStatusDialogFragment() {
 
     companion object {
 
-        val FRAGMENT_TAG = "favorite_confirm"
+        const val FRAGMENT_TAG = "favorite_confirm"
 
-        fun show(fm: android.support.v4.app.FragmentManager, accountKey: UserKey, statusId: String,
-                status: ParcelableStatus? = null): FavoriteConfirmDialogFragment {
+        fun show(fm: FragmentManager, accountKey: UserKey, statusId: String,
+                 status: ParcelableStatus? = null): FavoriteConfirmDialogFragment {
             val f = FavoriteConfirmDialogFragment()
             f.arguments = Bundle {
                 this[EXTRA_ACCOUNT_KEY] = accountKey
                 this[EXTRA_STATUS_ID] = statusId
                 this[EXTRA_STATUS] = status
             }
-            f.show(fm, FavoriteConfirmDialogFragment.FRAGMENT_TAG)
+            f.show(fm, FRAGMENT_TAG)
             return f
         }
     }

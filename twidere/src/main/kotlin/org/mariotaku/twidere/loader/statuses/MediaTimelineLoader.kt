@@ -20,7 +20,7 @@
 package org.mariotaku.twidere.loader.statuses
 
 import android.content.Context
-import android.support.annotation.WorkerThread
+import androidx.annotation.WorkerThread
 import org.mariotaku.ktextension.isNullOrEmpty
 import org.mariotaku.microblog.library.MicroBlog
 import org.mariotaku.microblog.library.MicroBlogException
@@ -60,11 +60,11 @@ class MediaTimelineLoader(
     private val isMyTimeline: Boolean
         get() {
             val accountKey = accountKey ?: return false
-            if (userKey != null) {
-                return userKey.maybeEquals(accountKey)
+            return if (userKey != null) {
+                userKey.maybeEquals(accountKey)
             } else {
                 val accountScreenName = DataStoreUtils.getAccountScreenName(context, accountKey)
-                return accountScreenName != null && accountScreenName.equals(screenName, ignoreCase = true)
+                accountScreenName != null && accountScreenName.equals(screenName, ignoreCase = true)
             }
         }
 

@@ -20,7 +20,7 @@
 package org.mariotaku.twidere.model.util
 
 import android.content.ContentResolver
-import android.support.v4.util.ArraySet
+import androidx.collection.ArraySet
 import org.mariotaku.microblog.library.twitter.model.User
 import org.mariotaku.sqliteqb.library.Expression
 import org.mariotaku.twidere.extension.bulkInsert
@@ -69,15 +69,15 @@ object ParcelableRelationshipUtils {
      */
     fun insert(cr: ContentResolver, relationships: Collection<ParcelableRelationship>) {
         val insertItems = ArraySet<ParcelableRelationship>()
-        relationships.forEach {
-            if (it._id > 0) {
-                val where = Expression.equals(CachedRelationships._ID, it._id).sql
+        relationships.forEach { parcelableRelationship ->
+            if (parcelableRelationship._id > 0) {
+                val where = Expression.equals(CachedRelationships._ID, parcelableRelationship._id).sql
                 cr.updateItems(CachedRelationships.CONTENT_URI, CachedRelationships.COLUMNS, where, null,
                         ParcelableRelationship::class.java) {
                     return@updateItems it
                 }
             } else {
-                insertItems.add(it)
+                insertItems.add(parcelableRelationship)
             }
         }
         cr.bulkInsert(CachedRelationships.CONTENT_URI, insertItems, ParcelableRelationship::class.java)

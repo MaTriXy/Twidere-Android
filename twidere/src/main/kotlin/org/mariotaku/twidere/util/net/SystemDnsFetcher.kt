@@ -23,7 +23,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.net.ConnectivityManager
 import android.os.Build
-import android.support.annotation.RequiresApi
+import androidx.annotation.RequiresApi
 import org.mariotaku.twidere.extension.activateNetworkCompat
 import java.net.InetAddress
 
@@ -42,8 +42,8 @@ object SystemDnsFetcher {
         @SuppressLint("PrivateApi")
         open fun get(context: Context): List<String>? {
             try {
-                val SystemProperties = Class.forName("android.os.SystemProperties")
-                val method = SystemProperties.getMethod("get", String::class.java)
+                val systemProperties = Class.forName("android.os.SystemProperties")
+                val method = systemProperties.getMethod("get", String::class.java)
                 val netdns = arrayOf("net.dns1", "net.dns2", "net.dns3", "net.dns4")
                 return netdns.mapNotNull { key ->
                     return@mapNotNull method(null, key) as? String

@@ -1,7 +1,7 @@
 package org.mariotaku.twidere.adapter
 
 import android.content.Context
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import com.bumptech.glide.RequestManager
@@ -77,10 +77,9 @@ class MessagesEntriesAdapter(
     }
 
     override fun getItemViewType(position: Int): Int {
-        val countIndex = itemCounts.getItemCountIndex(position)
-        when (countIndex) {
-            0 -> return ITEM_TYPE_MESSAGE_ENTRY
-            1 -> return ITEM_VIEW_TYPE_LOAD_INDICATOR
+        return when (val countIndex = itemCounts.getItemCountIndex(position)) {
+            0 -> ITEM_TYPE_MESSAGE_ENTRY
+            1 -> ITEM_VIEW_TYPE_LOAD_INDICATOR
             else -> throw UnsupportedCountIndexException(countIndex, position)
         }
     }

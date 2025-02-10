@@ -20,7 +20,7 @@
 package org.mariotaku.twidere.fragment.status
 
 import android.os.Bundle
-import android.support.v4.app.FragmentManager
+import androidx.fragment.app.FragmentManager
 import org.mariotaku.twidere.R
 import org.mariotaku.twidere.constant.IntentConstants.EXTRA_STATUS
 import org.mariotaku.twidere.model.ParcelableStatus
@@ -38,7 +38,7 @@ class DestroyStatusDialogFragment : AbsSimpleStatusOperationDialogFragment() {
 
     companion object {
 
-        val FRAGMENT_TAG = "destroy_status"
+        const val FRAGMENT_TAG = "destroy_status"
 
         fun show(fm: FragmentManager, status: ParcelableStatus): DestroyStatusDialogFragment {
             val args = Bundle()

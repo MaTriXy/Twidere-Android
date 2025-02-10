@@ -20,8 +20,8 @@ package org.mariotaku.twidere.model;
 
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.bluelinelabs.logansquare.annotation.JsonField;
 import com.bluelinelabs.logansquare.annotation.JsonObject;
@@ -41,7 +41,6 @@ import java.util.Arrays;
 @JsonObject
 public class ParcelableStatusUpdate implements Parcelable {
 
-    @SuppressWarnings("NullableProblems")
     @JsonField(name = "accounts")
     @NonNull
     @ParcelableThisPlease

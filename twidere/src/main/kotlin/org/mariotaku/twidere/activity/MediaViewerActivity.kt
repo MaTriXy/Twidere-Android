@@ -26,16 +26,16 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Parcelable
-import android.support.annotation.RequiresApi
-import android.support.v4.app.DialogFragment
-import android.support.v4.app.Fragment
-import android.support.v4.content.ContextCompat
-import android.support.v4.view.ViewCompat
-import android.support.v4.view.ViewPager
-import android.support.v4.view.WindowInsetsCompat
-import android.support.v4.widget.ViewDragHelper
-import android.support.v7.app.WindowDecorActionBar
-import android.support.v7.app.decorToolbar
+import androidx.annotation.RequiresApi
+import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.Fragment
+import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.viewpager.widget.ViewPager
+import androidx.core.view.WindowInsetsCompat
+import androidx.customview.widget.ViewDragHelper
+import androidx.appcompat.app.WindowDecorActionBar
+import androidx.appcompat.app.decorToolbar
 import android.view.*
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_media_viewer.*
@@ -73,6 +73,9 @@ import org.mariotaku.twidere.util.support.WindowSupport
 import org.mariotaku.twidere.view.viewer.MediaSwipeCloseContainer
 import java.io.File
 import javax.inject.Inject
+import kotlin.concurrent.thread
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import android.Manifest.permission as AndroidPermissions
 
 class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeCloseContainer.Listener,
@@ -103,7 +106,7 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
     private val currentFragment: MediaViewerFragment?
         get() {
             val viewPager = findViewPager()
-            val adapter = viewPager.adapter
+            val adapter = viewPager.adapter ?: return null
             val currentItem = viewPager.currentItem
             if (currentItem < 0 || currentItem >= adapter.count) return null
             return adapter.instantiateItem(viewPager, currentItem) as? MediaViewerFragment
@@ -112,7 +115,7 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
     private fun getCurrentCacheFileInfo(position: Int): SaveFileTask.FileInfo? {
         if (position == -1) return null
         val viewPager = findViewPager()
-        val adapter = viewPager.adapter
+        val adapter = viewPager.adapter ?: return null
         val f = adapter.instantiateItem(viewPager, position) as? MediaViewerFragment ?:
                 return null
         return f.cacheFileInfo()
@@ -144,7 +147,7 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
                     activityLayout.statusBarAlpha = offset
                 }
                 try {
-                    actionBar.hideOffset = Math.round(controlBarHeight * (1f - offset))
+                    actionBar.hideOffset = (controlBarHeight * (1f - offset)).roundToInt()
                 } catch (e: UnsupportedOperationException) {
                     // Some device will throw this exception
                     hideOffsetNotSupported = true
@@ -179,6 +182,7 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
             REQUEST_SHARE_MEDIA -> {
                 ShareProvider.clearTempFiles(this)
@@ -219,7 +223,7 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         val viewPager = findViewPager()
-        val adapter = viewPager.adapter
+        val adapter = viewPager.adapter ?: return false
         val currentItem = viewPager.currentItem
         if (currentItem < 0 || currentItem >= adapter.count) return false
         val obj = adapter.instantiateItem(viewPager, currentItem) as? MediaViewerFragment ?: return false
@@ -365,10 +369,10 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
             ParcelableMedia.Type.IMAGE -> {
                 val mediaUrl = media.media_url ?: return Fragment.instantiate(this, ExternalBrowserPageFragment::class.java.name, args) as MediaViewerFragment
                 args.putParcelable(EXTRA_MEDIA_URI, Uri.parse(mediaUrl))
-                if (mediaUrl.endsWith(".gif")) {
-                    return Fragment.instantiate(this, GifPageFragment::class.java.name, args) as MediaViewerFragment
+                return if (mediaUrl.endsWith(".gif")) {
+                    Fragment.instantiate(this, GifPageFragment::class.java.name, args) as MediaViewerFragment
                 } else {
-                    return Fragment.instantiate(this, ImagePageFragment::class.java.name, args) as MediaViewerFragment
+                    Fragment.instantiate(this, ImagePageFragment::class.java.name, args) as MediaViewerFragment
                 }
             }
             ParcelableMedia.Type.ANIMATED_GIF, ParcelableMedia.Type.CARD_ANIMATED_GIF -> {
@@ -406,10 +410,10 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
     }
 
     override fun onSwipeOffsetChanged(offset: Int) {
-        val offsetFactor = 1 - (Math.abs(offset).toFloat() / swipeContainer.height)
+        val offsetFactor = 1 - (abs(offset).toFloat() / swipeContainer.height)
         swipeContainer.backgroundAlpha = offsetFactor
         val colorToolbar = overrideTheme.colorToolbar
-        val alpha = Math.round(Color.alpha(colorToolbar) * offsetFactor).coerceIn(0..255)
+        val alpha = (Color.alpha(colorToolbar) * offsetFactor).roundToInt().coerceIn(0..255)
         activityLayout.statusBarAlpha = alpha / 255f
     }
 
@@ -438,7 +442,7 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
 
     override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
         val result = super.onApplyWindowInsets(v, insets)
-        val adapter = viewPager.adapter
+        val adapter = viewPager.adapter ?: return insets
         if (adapter.count == 0) return insets
         val fragment = adapter.instantiateItem(viewPager, viewPager.currentItem)
         if (fragment is IBaseFragment<*>) {
@@ -448,11 +452,7 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
     }
 
     private fun instantiateMediaViewerFragment(args: Bundle): MediaViewerFragment {
-        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
-            Fragment.instantiate(this, VideoPageFragment::class.java.name, args) as MediaViewerFragment
-        } else {
-            Fragment.instantiate(this, ExoPlayerPageFragment::class.java.name, args) as MediaViewerFragment
-        }
+        return Fragment.instantiate(this, ExoPlayerPageFragment::class.java.name, args) as MediaViewerFragment
     }
 
     private fun processShareIntent(intent: Intent) {
@@ -466,11 +466,10 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
         if (checkAllSelfPermissionsGranted(AndroidPermissions.WRITE_EXTERNAL_STORAGE)) {
             saveToStorage()
         } else {
-            val permissions: Array<String>
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                permissions = arrayOf(AndroidPermissions.WRITE_EXTERNAL_STORAGE, AndroidPermissions.READ_EXTERNAL_STORAGE)
+            val permissions: Array<String> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                arrayOf(AndroidPermissions.WRITE_EXTERNAL_STORAGE, AndroidPermissions.READ_EXTERNAL_STORAGE)
             } else {
-                permissions = arrayOf(AndroidPermissions.WRITE_EXTERNAL_STORAGE)
+                arrayOf(AndroidPermissions.WRITE_EXTERNAL_STORAGE)
             }
             PermissionRequestDialog.show(supportFragmentManager, getString(R.string.message_permission_request_save_media),
                     permissions, REQUEST_PERMISSION_SAVE_MEDIA)
@@ -501,16 +500,27 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
 
     private fun saveToStorage() {
         val fileInfo = getCurrentCacheFileInfo(saveToStoragePosition) ?: return
-        val type = (fileInfo as? CacheProvider.CacheFileTypeSupport)?.cacheFileType
-        val pubDir = when (type) {
+        val pubDir = when ((fileInfo as? CacheProvider.CacheFileTypeSupport)?.cacheFileType) {
             CacheFileType.VIDEO -> {
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+                } else {
+                    getExternalFilesDir(Environment.DIRECTORY_MOVIES)
+                }
             }
             CacheFileType.IMAGE -> {
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                } else {
+                    getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+                }
             }
             else -> {
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                } else {
+                    getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                }
             }
         }
         val saveDir = File(pubDir, "Twidere")
@@ -521,17 +531,19 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
     private fun openSaveToDocumentChooser() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) return
         val fileInfo = getCurrentCacheFileInfo(viewPager.currentItem) ?: return
-        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
-        intent.type = fileInfo.mimeType ?: "*/*"
-        intent.addCategory(Intent.CATEGORY_OPENABLE)
-        val extension = fileInfo.fileExtension
-        val saveFileName = if (extension != null) {
-            "${fileInfo.fileName?.removeSuffix("_$extension")}.$extension"
-        } else {
-            fileInfo.fileName
+        thread {
+            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
+            intent.type = fileInfo.mimeType ?: "*/*"
+            intent.addCategory(Intent.CATEGORY_OPENABLE)
+            val extension = fileInfo.fileExtension
+            val saveFileName = if (extension != null) {
+                "${fileInfo.fileName?.removeSuffix("_$extension")}.$extension"
+            } else {
+                fileInfo.fileName
+            }
+            intent.putExtra(Intent.EXTRA_TITLE, saveFileName)
+            startActivityForResult(intent, REQUEST_SELECT_SAVE_MEDIA)
         }
-        intent.putExtra(Intent.EXTRA_TITLE, saveFileName)
-        startActivityForResult(intent, REQUEST_SELECT_SAVE_MEDIA)
     }
 
     private fun saveMediaToContentUri(data: Uri) {
@@ -540,7 +552,9 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
         (showProgressDialog("save_media_to_progress") and task {
             val a = weakThis.get() ?: throw InterruptedException()
             fileInfo.inputStream().use { st ->
-                st.copyTo(a.contentResolver.openOutputStream(data))
+                a.contentResolver.openOutputStream(data)?.use {
+                    st.copyTo(it)
+                }
             }
         }).successUi {
             val a = weakThis.get() ?: return@successUi
@@ -552,7 +566,7 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
     }
 
     private fun MediaViewerFragment.cacheFileInfo(): SaveFileTask.FileInfo? {
-        return when (this) {
+        when (this) {
             is CacheDownloadMediaViewerFragment -> {
                 val cacheUri = downloadResult?.cacheUri ?: return null
                 val type = when (this) {
@@ -561,7 +575,9 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
                     is GifPageFragment -> CacheFileType.IMAGE
                     else -> return null
                 }
-                CacheProvider.ContentUriFileInfo(activity, cacheUri, type)
+                return activity?.let {
+                    CacheProvider.ContentUriFileInfo(it, cacheUri, type)
+                }
             }
             is ExoPlayerPageFragment -> {
                 return getRequestFileInfo()
@@ -620,10 +636,10 @@ class MediaViewerActivity : BaseActivity(), IMediaViewerActivity, MediaSwipeClos
 
     companion object {
 
-        private val REQUEST_SHARE_MEDIA = 201
-        private val REQUEST_PERMISSION_SAVE_MEDIA = 202
-        private val REQUEST_PERMISSION_SHARE_MEDIA = 203
-        private val REQUEST_SELECT_SAVE_MEDIA = 204
+        private const val REQUEST_SHARE_MEDIA = 201
+        private const val REQUEST_PERMISSION_SAVE_MEDIA = 202
+        private const val REQUEST_PERMISSION_SHARE_MEDIA = 203
+        private const val REQUEST_SELECT_SAVE_MEDIA = 204
 
         @RequiresApi(Build.VERSION_CODES.JELLY_BEAN)
         const val FLAG_SYSTEM_UI_HIDE_BARS = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or

@@ -27,8 +27,8 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
-import android.support.v7.preference.Preference
-import android.support.v7.preference.PreferenceFragmentCompat
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
 import com.squareup.otto.Bus
 import nl.komponents.kovenant.Promise
 import org.mariotaku.kpreferences.KPreferences
@@ -93,11 +93,10 @@ abstract class BasePreferenceFragment : PreferenceFragmentCompat(), IBaseFragmen
             REQUEST_PICK_RINGTONE -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
                     val ringtone = data.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
-                    if (ringtonePreferenceKey != null) {
-                        val ringtonePreference = findPreference(ringtonePreferenceKey) as RingtonePreference?
-                        if (ringtonePreference != null) {
-                            ringtonePreference.value = ringtone?.toString()
-                        }
+                    ringtonePreferenceKey?.let {
+                        findPreference<RingtonePreference>(it)
+                    }?.let {
+                        it.value = ringtone?.toString()
                     }
                     ringtonePreferenceKey = null
                 }
@@ -141,8 +140,8 @@ abstract class BasePreferenceFragment : PreferenceFragmentCompat(), IBaseFragmen
 
     companion object {
 
-        private val REQUEST_PICK_RINGTONE = 301
-        private val EXTRA_RINGTONE_PREFERENCE_KEY = "internal:ringtone_preference_key"
+        private const val REQUEST_PICK_RINGTONE = 301
+        private const val EXTRA_RINGTONE_PREFERENCE_KEY = "internal:ringtone_preference_key"
     }
 
 }

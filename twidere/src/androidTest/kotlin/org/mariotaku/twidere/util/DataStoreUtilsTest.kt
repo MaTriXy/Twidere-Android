@@ -1,7 +1,7 @@
 package org.mariotaku.twidere.util
 
-import android.support.test.InstrumentationRegistry
-import android.support.test.runner.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -12,13 +12,13 @@ import org.junit.runner.RunWith
 class DataStoreUtilsTest {
     @Test
     fun testCleanDatabasesByItemLimit() {
-        val context = InstrumentationRegistry.getTargetContext()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         DataStoreUtils.cleanDatabasesByItemLimit(context)
     }
 
     @Test
     fun testGetAccountKeys() {
-        val context = InstrumentationRegistry.getTargetContext()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         DataStoreUtils.getAccountKeys(context)
     }
 }

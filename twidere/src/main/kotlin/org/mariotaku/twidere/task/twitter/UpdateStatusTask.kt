@@ -9,11 +9,12 @@ import android.graphics.Point
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
-import android.support.annotation.UiThread
-import android.support.annotation.WorkerThread
-import android.support.media.ExifInterface
 import android.text.TextUtils
+import android.util.Base64
 import android.webkit.MimeTypeMap
+import androidx.annotation.UiThread
+import androidx.annotation.WorkerThread
+import androidx.exifinterface.media.ExifInterface
 import net.ypresto.androidtranscoder.MediaTranscoder
 import net.ypresto.androidtranscoder.format.MediaFormatStrategyPresets
 import org.mariotaku.ktextension.*
@@ -31,7 +32,6 @@ import org.mariotaku.microblog.library.twitter.model.StatusUpdate
 import org.mariotaku.restfu.http.ContentType
 import org.mariotaku.restfu.http.mime.Body
 import org.mariotaku.restfu.http.mime.FileBody
-import org.mariotaku.restfu.http.mime.SimpleBody
 import org.mariotaku.sqliteqb.library.Expression
 import org.mariotaku.twidere.R
 import org.mariotaku.twidere.TwidereConstants.*
@@ -54,12 +54,10 @@ import org.mariotaku.twidere.util.*
 import org.mariotaku.twidere.util.io.ContentLengthInputStream
 import org.mariotaku.twidere.util.premium.ExtraFeaturesService
 import org.mariotaku.twidere.util.text.StatusTextValidator
-import java.io.Closeable
-import java.io.File
-import java.io.FileNotFoundException
-import java.io.IOException
+import java.io.*
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.math.min
 
 /**
  * Update status
@@ -68,7 +66,7 @@ import java.util.concurrent.TimeUnit
  */
 class UpdateStatusTask(
         context: Context,
-        internal val stateCallback: UpdateStatusTask.StateCallback
+        internal val stateCallback: StateCallback
 ) : BaseAbstractTask<Pair<ParcelableStatusUpdate, ScheduleInfo?>, UpdateStatusTask.UpdateStatusResult, Any?>(context) {
 
     override fun doLongOperation(params: Pair<ParcelableStatusUpdate, ScheduleInfo?>): UpdateStatusResult {
@@ -77,12 +75,12 @@ class UpdateStatusTask(
             applyUpdateStatus(update)
         }
         microBlogWrapper.addSendingDraftId(draftId)
-        try {
+        return try {
             val result = doUpdateStatus(update, info, draftId)
             deleteOrUpdateDraft(update, result, draftId)
-            return result
+            result
         } catch (e: UpdateStatusException) {
-            return UpdateStatusResult(e, draftId)
+            UpdateStatusResult(e, draftId)
         } finally {
             microBlogWrapper.removeSendingDraftId(draftId)
         }
@@ -120,10 +118,10 @@ class UpdateStatusTask(
             uploadMedia(uploader, update, info, pendingUpdate)
             shortenStatus(shortener, update, pendingUpdate)
 
-            if (info != null) {
-                result = requestScheduleStatus(update, pendingUpdate, info, draftId)
+            result = if (info != null) {
+                requestScheduleStatus(update, pendingUpdate, info, draftId)
             } else {
-                result = requestUpdateStatus(update, pendingUpdate, draftId)
+                requestUpdateStatus(update, pendingUpdate, draftId)
             }
 
             mediaUploadCallback(uploader, pendingUpdate, result)
@@ -207,7 +205,7 @@ class UpdateStatusTask(
                 pending.mediaUploadResults[i] = uploadResult
                 if (uploadResult.shared_owners != null) {
                     for (sharedOwner in uploadResult.shared_owners) {
-                        sharedMedia.put(sharedOwner, uploadResult)
+                        sharedMedia[sharedOwner] = uploadResult
                     }
                 }
             }
@@ -246,7 +244,7 @@ class UpdateStatusTask(
                 pending.statusShortenResults[i] = shortenResult
                 if (shortenResult.shared_owners != null) {
                     for (sharedOwner in shortenResult.shared_owners) {
-                        sharedShortened.put(sharedOwner, shortenResult)
+                        sharedShortened[sharedOwner] = shortenResult
                     }
                 }
             }
@@ -689,11 +687,31 @@ class UpdateStatusTask(
             val ids: Array<String>,
             val deleteOnSuccess: List<MediaDeletionItem>,
             val deleteAlways: List<MediaDeletionItem>
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as SharedMediaUploadResult
+
+            if (!ids.contentEquals(other.ids)) return false
+            if (deleteOnSuccess != other.deleteOnSuccess) return false
+            if (deleteAlways != other.deleteAlways) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = ids.contentHashCode()
+            result = 31 * result + deleteOnSuccess.hashCode()
+            result = 31 * result + deleteAlways.hashCode()
+            return result
+        }
+    }
 
     companion object {
 
-        private val BULK_SIZE = 512 * 1024// 512 Kib
+        private const val BULK_SIZE = 512 * 1024// 512 Kib
 
         @Throws(UploadException::class)
         fun uploadMicroBlogMediaShared(context: Context, upload: TwitterUpload,
@@ -748,17 +766,17 @@ class UpdateStatusTask(
                 chucked: Boolean, callback: UploadCallback?): SharedMediaUploadResult {
             val deleteOnSuccess = ArrayList<MediaDeletionItem>()
             val deleteAlways = ArrayList<MediaDeletionItem>()
-            val mediaIds = media.mapIndexedToArray { index, media ->
+            val mediaIds = media.mapIndexedToArray { index, item ->
                 val resp: Attachment
                 //noinspection TryWithIdenticalCatches
                 var body: MediaStreamBody? = null
                 try {
                     val sizeLimit = account.getMediaSizeLimit()
-                    body = getBodyFromMedia(context, media, sizeLimit, chucked,
+                    body = getBodyFromMedia(context, item, sizeLimit, chucked,
                             ContentLengthInputStream.ReadListener { length, position ->
                                 callback?.onUploadingProgressChanged(index, position, length)
                             })
-                    resp = mastodon.uploadMediaAttachment(body.body)
+                    resp = mastodon.uploadMediaAttachment(body.body, item.alt_text)
                 } catch (e: IOException) {
                     throw UploadException(e).apply {
                         this.deleteAlways = deleteAlways
@@ -834,7 +852,6 @@ class UpdateStatusTask(
             }
         }
 
-
         @Throws(IOException::class, MicroBlogException::class)
         private fun uploadMediaChucked(upload: TwitterUpload, body: Body,
                 mediaCategory: String? = null, ownerIds: Array<String>?): MediaUploadResponse {
@@ -842,12 +859,19 @@ class UpdateStatusTask(
             val length = body.length()
             val stream = body.stream()
             var response = upload.initUploadMedia(mediaType, length, mediaCategory, ownerIds)
-            val segments = if (length == 0L) 0 else (length / BULK_SIZE + 1).toInt()
-            for (segmentIndex in 0 until segments) {
-                val currentBulkSize = Math.min(BULK_SIZE.toLong(), length - segmentIndex * BULK_SIZE).toInt()
-                val bulk = SimpleBody(ContentType.OCTET_STREAM, null, currentBulkSize.toLong(),
-                        stream)
-                upload.appendUploadMedia(response.id, segmentIndex, bulk)
+            run {
+                var streamReadLength = 0
+                var segmentIndex = 0
+                while (streamReadLength < length) {
+                    val currentBulkSize = min(BULK_SIZE.toLong(), length - streamReadLength).toInt()
+                    val output = ByteArrayOutputStream()
+                    Utils.copyStream(stream, output, currentBulkSize)
+                    val data = Base64.encodeToString(output.toByteArray(), Base64.DEFAULT)
+                    upload.appendUploadMedia(response.id, segmentIndex, data)
+                    output.close()
+                    segmentIndex++
+                    streamReadLength += currentBulkSize
+                }
             }
             response = upload.finalizeUploadMedia(response.id)
             var info: MediaUploadResponse.ProcessingInfo? = response.processingInfo
@@ -877,9 +901,9 @@ class UpdateStatusTask(
         }
 
         private fun shouldWaitForProcess(info: MediaUploadResponse.ProcessingInfo): Boolean {
-            when (info.state) {
-                MediaUploadResponse.ProcessingInfo.State.PENDING, MediaUploadResponse.ProcessingInfo.State.IN_PROGRESS -> return true
-                else -> return false
+            return when (info.state) {
+                MediaUploadResponse.ProcessingInfo.State.PENDING, MediaUploadResponse.ProcessingInfo.State.IN_PROGRESS -> true
+                else -> false
             }
         }
 
@@ -896,7 +920,7 @@ class UpdateStatusTask(
                 inJustDecodeBounds = true
             }
             var imageSize = -1L
-            resolver.openInputStream(mediaUri).use {
+            resolver.openInputStream(mediaUri)?.use {
                 imageSize = it.available().toLong()
                 BitmapFactory.decodeStream(it, null, o)
             }
@@ -910,7 +934,7 @@ class UpdateStatusTask(
                 return null
             }
 
-            if (imageLimit == null || (imageLimit.checkGeomentry(o.outWidth, o.outHeight)
+            if (imageLimit == null || (imageLimit.checkGeometry(o.outWidth, o.outHeight)
                     && imageLimit.checkSize(imageSize, chucked))) return null
             o.inSampleSize = o.calculateInSampleSize(imageLimit.maxWidth, imageLimit.maxHeight)
             o.inJustDecodeBounds = false
@@ -935,8 +959,9 @@ class UpdateStatusTask(
                     }
                 }
                 "image/jpeg" -> {
-                    val origExif = context.contentResolver.openInputStream(mediaUri)
-                            .use(::ExifInterface)
+                    val origExif = context.contentResolver.openInputStream(mediaUri)?.use {
+                        ExifInterface(it)
+                    } ?: return null
                     tempFile.outputStream().use { os ->
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 85, os)
                         os.flush()
@@ -997,7 +1022,7 @@ class UpdateStatusTask(
                     framerate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE).toDoubleOr(-1.0)
                 }
 
-                size = resolver.openFileDescriptor(mediaUri, "r").use { it.statSize }
+                size = resolver.openFileDescriptor(mediaUri, "r")?.use { it.statSize } ?: 0
             } catch (e: Exception) {
                 DebugLog.w(LOGTAG, "Unable to retrieve video info", e)
             } finally {
@@ -1026,7 +1051,7 @@ class UpdateStatusTask(
             }
             DebugLog.d(LOGTAG, "Transcoding video")
 
-            val ext = mediaUri.lastPathSegment.substringAfterLast(".")
+            val ext = mediaUri.lastPathSegment!!.substringAfterLast(".")
             val strategy = MediaFormatStrategyPresets.createAndroid720pStrategy()
             val listener = object : MediaTranscoder.Listener {
                 override fun onTranscodeFailed(exception: Exception?) {
@@ -1044,7 +1069,7 @@ class UpdateStatusTask(
             }
             val pfd = resolver.openFileDescriptor(mediaUri, "r")
             val tempFile = File.createTempFile("twidere__encoded_video_", ".$ext", context.cacheDir)
-            val future = MediaTranscoder.getInstance().transcodeVideo(pfd.fileDescriptor,
+            val future = MediaTranscoder.getInstance().transcodeVideo(pfd!!.fileDescriptor,
                     tempFile.absolutePath, strategy, listener)
             try {
                 future.get()
@@ -1087,7 +1112,7 @@ class UpdateStatusTask(
             context.contentResolver.delete(Drafts.CONTENT_URI, where, null)
         }
 
-        fun AccountExtras.ImageLimit.checkGeomentry(width: Int, height: Int): Boolean {
+        fun AccountExtras.ImageLimit.checkGeometry(width: Int, height: Int): Boolean {
             if (this.maxWidth <= 0 || this.maxHeight <= 0) return true
             return (width <= this.maxWidth && height <= this.maxHeight) || (height <= this.maxWidth
                     && width <= this.maxHeight)

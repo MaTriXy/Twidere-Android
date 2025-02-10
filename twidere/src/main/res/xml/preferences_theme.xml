@@ -68,4 +68,26 @@
             android:value="true"/>
     </org.mariotaku.twidere.preference.EmojiSupportPreference>
 
+    <org.mariotaku.twidere.preference.EntrySummaryListPreference
+        android:entries="@array/entries_tab_position"
+        android:entryValues="@array/values_tab_position"
+        android:key="tab_position"
+        android:order="26"
+        android:title="@string/preference_title_tab_position">
+        <extra
+            android:name="should_recreate"
+            android:value="true"/>
+    </org.mariotaku.twidere.preference.EntrySummaryListPreference>
+
+    <SwitchPreferenceCompat
+        android:order="27"
+        android:defaultValue="true"
+        android:key="auto_hide_tabs"
+        android:summary="@string/preference_summary_auto_hide_tabs"
+        android:title="@string/preference_title_auto_hide_tab">
+        <extra
+            android:name="should_recreate"
+            android:value="true"/>
+    </SwitchPreferenceCompat>
+
 </PreferenceScreen>

@@ -25,8 +25,8 @@ import android.content.Context
 import android.content.DialogInterface.BUTTON_NEUTRAL
 import android.content.DialogInterface.BUTTON_POSITIVE
 import android.os.Bundle
-import android.support.v7.app.AlertDialog
-import android.support.v7.app.AlertDialog.Builder
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AlertDialog.Builder
 import android.view.View
 import android.widget.Toast
 import nl.komponents.kovenant.Promise
@@ -57,30 +57,31 @@ abstract class AbsStatusDialogFragment : BaseDialogFragment() {
     protected abstract val Dialog.itemContent: View
 
     protected val status: ParcelableStatus?
-        get() = arguments.getParcelable<ParcelableStatus>(EXTRA_STATUS)
+        get() = arguments?.getParcelable(EXTRA_STATUS)
 
     protected val statusId: String
-        get() = arguments.getString(EXTRA_STATUS_ID)
+        get() = arguments?.getString(EXTRA_STATUS_ID)!!
 
     protected val accountKey: UserKey
-        get() = arguments.getParcelable(EXTRA_ACCOUNT_KEY)
+        get() = arguments?.getParcelable(EXTRA_ACCOUNT_KEY)!!
 
     private lateinit var adapter: DummyItemAdapter
 
-    override final fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val builder = Builder(context)
+    final override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val builder = Builder(requireContext())
         val accountKey = this.accountKey
 
         builder.setupAlertDialog()
 
-        adapter = DummyItemAdapter(context, requestManager = requestManager)
+        adapter = DummyItemAdapter(requireContext(), requestManager = requestManager)
         adapter.showCardActions = false
+        adapter.showCardNumbers = false
         adapter.showAccountsColor = true
 
         val dialog = builder.create()
-        dialog.onShow {
-            val context = it.context ?: return@onShow
-            it.applyTheme()
+        dialog.onShow { alertDialog ->
+            val context = alertDialog.context
+            alertDialog.applyTheme()
 
             val am = AccountManager.get(context)
             val details = AccountUtils.getAccountDetails(am, accountKey, true) ?: run {
@@ -88,7 +89,7 @@ abstract class AbsStatusDialogFragment : BaseDialogFragment() {
                 return@onShow
             }
             val weakThis = WeakReference(this)
-            val weakHolder = WeakReference(StatusViewHolder(adapter = adapter, itemView = it.itemContent).apply {
+            val weakHolder = WeakReference(StatusViewHolder(adapter = adapter, itemView = alertDialog.itemContent).apply {
                 setupViewOptions()
             })
             val extraStatus = status
@@ -96,7 +97,7 @@ abstract class AbsStatusDialogFragment : BaseDialogFragment() {
                 showStatus(weakHolder.get()!!, extraStatus, details, savedInstanceState)
             } else promiseOnUi {
                 weakThis.get()?.showProgress()
-            } and AbsStatusDialogFragment.showStatus(context, details, statusId, extraStatus).successUi { status ->
+            } and showStatus(context, details, statusId, extraStatus).successUi { status ->
                 val holder = weakHolder.get() ?: return@successUi
                 weakThis.get()?.showStatus(holder, status, details, savedInstanceState)
             }.failUi {

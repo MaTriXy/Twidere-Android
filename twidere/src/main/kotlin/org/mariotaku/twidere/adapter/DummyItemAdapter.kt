@@ -2,9 +2,9 @@ package org.mariotaku.twidere.adapter
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.support.v4.text.BidiFormatter
-import android.support.v7.widget.RecyclerView
 import android.util.SparseBooleanArray
+import androidx.core.text.BidiFormatter
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.RequestManager
 import org.mariotaku.kpreferences.get
 import org.mariotaku.twidere.R
@@ -13,8 +13,8 @@ import org.mariotaku.twidere.adapter.iface.IStatusesAdapter
 import org.mariotaku.twidere.adapter.iface.IUserListsAdapter
 import org.mariotaku.twidere.adapter.iface.IUsersAdapter
 import org.mariotaku.twidere.constant.*
-import org.mariotaku.twidere.model.*
 import org.mariotaku.twidere.extension.model.activityStatus
+import org.mariotaku.twidere.model.*
 import org.mariotaku.twidere.util.AsyncTwitterWrapper
 import org.mariotaku.twidere.util.TwidereLinkify
 import org.mariotaku.twidere.util.UserColorNameManager
@@ -63,6 +63,10 @@ class DummyItemAdapter(
 
     var showCardActions: Boolean = false
 
+    var showCardNumbers: Boolean = false
+
+    var showLinkPreview: Boolean = false
+
     private var showingActionCardPosition = RecyclerView.NO_POSITION
     private val showingFullTextStates = SparseBooleanArray()
 
@@ -76,14 +80,18 @@ class DummyItemAdapter(
     }
 
     override fun getStatus(position: Int, raw: Boolean): ParcelableStatus {
-        if (adapter is ParcelableStatusesAdapter) {
-            return adapter.getStatus(position, raw)
-        } else if (adapter is VariousItemsAdapter) {
-            return adapter.getItem(position) as ParcelableStatus
-        } else if (adapter is ParcelableActivitiesAdapter) {
-            return adapter.getActivity(position).activityStatus!!
+        return when (adapter) {
+            is ParcelableStatusesAdapter -> {
+                adapter.getStatus(position, raw)
+            }
+            is VariousItemsAdapter -> {
+                adapter.getItem(position) as ParcelableStatus
+            }
+            is ParcelableActivitiesAdapter -> {
+                adapter.getActivity(position).activityStatus!!
+            }
+            else -> throw IndexOutOfBoundsException()
         }
-        throw IndexOutOfBoundsException()
     }
 
     override fun getStatusCount(raw: Boolean) = 0
@@ -96,11 +104,20 @@ class DummyItemAdapter(
 
     override fun getAccountKey(position: Int, raw: Boolean) = UserKey.INVALID
 
-    override fun findStatusById(accountKey: UserKey, statusId: String) = null
+    override fun findStatusById(accountKey: UserKey, statusId: String): Nothing? = null
+
+    override fun isCardNumbersShown(position: Int): Boolean {
+        if (position == RecyclerView.NO_POSITION) return showCardNumbers
+        return showCardNumbers || showingActionCardPosition == position
+    }
 
     override fun isCardActionsShown(position: Int): Boolean {
         if (position == RecyclerView.NO_POSITION) return showCardActions
         return showCardActions || showingActionCardPosition == position
+    }
+
+    override fun isLinkPreviewShown(position: Int): Boolean {
+        return showLinkPreview
     }
 
     override fun showCardActions(position: Int) {
@@ -181,6 +198,8 @@ class DummyItemAdapter(
         mediaPreviewEnabled = preferences[mediaPreviewKey]
         sensitiveContentEnabled = preferences[displaySensitiveContentsKey]
         showCardActions = !preferences[hideCardActionsKey]
+        showCardNumbers = !preferences[hideCardNumbersKey]
+        showLinkPreview = preferences[showLinkPreviewKey]
         linkHighlightingStyle = preferences[linkHighlightOptionKey]
         lightFont = preferences[lightFontKey]
         useStarsForLikes = preferences[iWantMyStarsBackKey]

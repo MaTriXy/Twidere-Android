@@ -20,9 +20,9 @@ package org.mariotaku.twidere.model.tab.extra;
 
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.support.annotation.CallSuper;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.CallSuper;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.bluelinelabs.logansquare.LoganSquare;
 import com.bluelinelabs.logansquare.annotation.JsonObject;
@@ -51,6 +51,7 @@ public abstract class TabExtras implements Parcelable {
             case CustomTabType.NOTIFICATIONS_TIMELINE: {
                 return LoganSquare.parse(json, InteractionsTabExtras.class);
             }
+            case CustomTabType.LIST_TIMELINE:
             case CustomTabType.HOME_TIMELINE: {
                 return LoganSquare.parse(json, HomeTabExtras.class);
             }

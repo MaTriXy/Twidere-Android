@@ -19,18 +19,18 @@
 
 package org.mariotaku.twidere.view.iface
 
-import android.graphics.Rect
+import androidx.core.view.WindowInsetsCompat
 import android.view.MotionEvent
 import android.view.View
 
 interface IExtendedView {
 
-    var touchInterceptor: IExtendedView.TouchInterceptor?
-    var onSizeChangedListener: IExtendedView.OnSizeChangedListener?
-    var onApplySystemWindowInsetsListener: IExtendedView.OnApplySystemWindowInsetsListener?
+    var touchInterceptor: TouchInterceptor?
+    var onSizeChangedListener: OnSizeChangedListener?
+    var onApplyWindowInsetsCompatListener: OnApplyWindowInsetsCompatListener?
 
-    interface OnApplySystemWindowInsetsListener {
-        fun onApplySystemWindowInsets(insets: Rect)
+    interface OnApplyWindowInsetsCompatListener {
+        fun onApplyWindowInsets(insets: WindowInsetsCompat)
     }
 
     interface OnSizeChangedListener {

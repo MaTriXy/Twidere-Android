@@ -33,7 +33,7 @@ import android.graphics.Shader.TileMode;
 import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.support.v4.content.ContextCompat;
+import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -314,7 +314,7 @@ public class NyanDrawingHelper {
         public void dispatchOnDraw(final Canvas canvas) {
             final int w = canvas.getWidth(), h = canvas.getHeight();
             if (w <= 0 || h <= 0) return;
-            for (final Star star : mStars.toArray(new Star[mStars.size()])) {
+            for (final Star star : mStars.toArray(new Star[0])) {
                 final int col = star.nextColumn(), row = star.nextRow();
                 final float y = (row + 0.5f) * (h / mStarRows), x = (col + 0.5f) * (w / mStarCols);
                 drawStar(canvas, x, y, star.nextFrame());

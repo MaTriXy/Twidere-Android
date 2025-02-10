@@ -1,7 +1,7 @@
 package org.mariotaku.twidere.model.util
 
-import android.support.test.InstrumentationRegistry
-import android.support.test.runner.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,7 +23,7 @@ class ParcelableStatusUtilsTest {
 
     @Test
     fun testFromStatus() {
-        val context = InstrumentationRegistry.getContext()
+        val context = InstrumentationRegistry.getInstrumentation().context
         val status_8754050 = context.resources.openRawResource(R.raw.status_8754050).use {
             val status = JsonSerializer.parse(it, Status::class.java)
             return@use status.toParcelable(UserKey("1234567", "gnusocial.de"), AccountType.STATUSNET)

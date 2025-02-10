@@ -22,8 +22,8 @@ package org.mariotaku.twidere.fragment.statuses
 import android.app.Dialog
 import android.content.Context
 import android.os.Bundle
-import android.support.v4.content.Loader
-import android.support.v7.app.AlertDialog
+import androidx.loader.content.Loader
+import androidx.appcompat.app.AlertDialog
 import com.squareup.otto.Subscribe
 import org.mariotaku.kpreferences.get
 import org.mariotaku.kpreferences.set
@@ -53,18 +53,24 @@ class UserTimelineFragment : ParcelableStatusesFragment() {
 
     override val savedStatusesFileArgs: Array<String>?
         get() {
+            val arguments = arguments ?: return null
+            val context = context ?: return null
             val accountKey = Utils.getAccountKey(context, arguments)
             val userKey = arguments.getParcelable<UserKey?>(EXTRA_USER_KEY)
             val screenName = arguments.getString(EXTRA_SCREEN_NAME)
             val result = ArrayList<String>()
             result.add(AUTHORITY_USER_TIMELINE)
             result.add("account=$accountKey")
-            if (userKey != null) {
-                result.add("user_id=$userKey")
-            } else if (screenName != null) {
-                result.add("screen_name=$screenName")
-            } else {
-                return null
+            when {
+                userKey != null -> {
+                    result.add("user_id=$userKey")
+                }
+                screenName != null -> {
+                    result.add("screen_name=$screenName")
+                }
+                else -> {
+                    return null
+                }
             }
             (timelineFilter as? UserTimelineFilter)?.let {
                 if (it.isIncludeReplies) {
@@ -79,23 +85,28 @@ class UserTimelineFragment : ParcelableStatusesFragment() {
 
     override val readPositionTagWithArguments: String?
         get() {
+            val arguments = arguments ?: return null
             if (arguments.getLong(EXTRA_TAB_ID, -1) < 0) return null
             val sb = StringBuilder("user_timeline_")
 
             val userKey = arguments.getParcelable<UserKey>(EXTRA_USER_KEY)
             val screenName = arguments.getString(EXTRA_SCREEN_NAME)
-            if (userKey != null) {
-                sb.append(userKey)
-            } else if (screenName != null) {
-                sb.append(screenName)
-            } else {
-                return null
+            when {
+                userKey != null -> {
+                    sb.append(userKey)
+                }
+                screenName != null -> {
+                    sb.append(screenName)
+                }
+                else -> {
+                    return null
+                }
             }
             return sb.toString()
         }
 
     override val enableTimelineFilter: Boolean
-        get() = arguments.getBoolean(EXTRA_ENABLE_TIMELINE_FILTER)
+        get() = arguments?.getBoolean(EXTRA_ENABLE_TIMELINE_FILTER) ?: false
 
     override val timelineFilter: TimelineFilter?
         get() = if (enableTimelineFilter) preferences[userTimelineFilterKey] else null
@@ -127,12 +138,12 @@ class UserTimelineFragment : ParcelableStatusesFragment() {
     override fun onFilterClick(holder: TimelineFilterHeaderViewHolder) {
         val df = UserTimelineFilterDialogFragment()
         df.setTargetFragment(this, REQUEST_SET_TIMELINE_FILTER)
-        df.show(fragmentManager, "set_timeline_filter")
+        parentFragmentManager.let { df.show(it, "set_timeline_filter") }
     }
 
     @Subscribe
     fun onStatusPinEvent(event: StatusPinEvent) {
-        val userKey = arguments.getParcelable<UserKey?>(EXTRA_USER_KEY) ?: return
+        val userKey = arguments?.getParcelable<UserKey?>(EXTRA_USER_KEY) ?: return
         if (event.userKey != userKey) return
         triggerRefresh()
     }
@@ -146,7 +157,7 @@ class UserTimelineFragment : ParcelableStatusesFragment() {
     class UserTimelineFilterDialogFragment : BaseDialogFragment() {
 
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-            val builder = AlertDialog.Builder(context)
+            val builder = AlertDialog.Builder(requireContext())
             val values = resources.getStringArray(R.array.values_user_timeline_filter)
             val checkedItems = BooleanArray(values.size) {
                 val filter = preferences[userTimelineFilterKey]

@@ -22,9 +22,9 @@ package org.mariotaku.twidere.fragment
 import android.app.Dialog
 import android.content.ContentValues
 import android.os.Bundle
-import android.support.v4.app.FragmentManager
-import android.support.v7.app.AlertDialog
-import com.twitter.Extractor
+import androidx.fragment.app.FragmentManager
+import androidx.appcompat.app.AlertDialog
+import com.twitter.twittertext.Extractor
 import org.mariotaku.kpreferences.get
 import org.mariotaku.twidere.R
 import org.mariotaku.twidere.constant.IntentConstants.EXTRA_STATUS
@@ -48,11 +48,11 @@ class AddStatusFilterDialogFragment : BaseDialogFragment() {
     private var filterItems: Array<FilterItemInfo>? = null
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val builder = AlertDialog.Builder(context)
+        val builder = AlertDialog.Builder(requireContext())
         filterItems = filterItemsInfo
         val entries = arrayOfNulls<String>(filterItems!!.size)
         val nameFirst = preferences[nameFirstKey]
-        for (i in 0 until entries.size) {
+        for (i in entries.indices) {
             val info = filterItems!![i]
             when (info.type) {
                 FilterItemInfo.FILTER_TYPE_USER -> {
@@ -87,36 +87,42 @@ class AddStatusFilterDialogFragment : BaseDialogFragment() {
                 }
                 val info = filterItems!![checkPositions.keyAt(i)]
                 val value = info.value
-                if (value is ParcelableUserMention) {
-                    userKeys.add(value.key)
-                    userValues.add(ContentValuesCreator.createFilteredUser(value))
-                } else if (value is UserItem) {
-                    userKeys.add(value.key)
-                    userValues.add(createFilteredUser(value))
-                } else if (info.type == FilterItemInfo.FILTER_TYPE_KEYWORD) {
-                    val keyword = ParseUtils.parseString(value)
-                    keywords.add(keyword)
-                    val values = ContentValues()
-                    values.put(Filters.Keywords.VALUE, "#$keyword")
-                    keywordValues.add(values)
-                } else if (info.type == FilterItemInfo.FILTER_TYPE_SOURCE) {
-                    val source = ParseUtils.parseString(value)
-                    sources.add(source)
-                    val values = ContentValues()
-                    values.put(Filters.Sources.VALUE, source)
-                    sourceValues.add(values)
+                when {
+                    value is ParcelableUserMention -> {
+                        userKeys.add(value.key)
+                        userValues.add(ContentValuesCreator.createFilteredUser(value))
+                    }
+                    value is UserItem -> {
+                        userKeys.add(value.key)
+                        userValues.add(createFilteredUser(value))
+                    }
+                    info.type == FilterItemInfo.FILTER_TYPE_KEYWORD -> {
+                        val keyword = ParseUtils.parseString(value)
+                        keywords.add(keyword)
+                        val values = ContentValues()
+                        values.put(Filters.Keywords.VALUE, "#$keyword")
+                        keywordValues.add(values)
+                    }
+                    info.type == FilterItemInfo.FILTER_TYPE_SOURCE -> {
+                        val source = ParseUtils.parseString(value)
+                        sources.add(source)
+                        val values = ContentValues()
+                        values.put(Filters.Sources.VALUE, source)
+                        sourceValues.add(values)
+                    }
                 }
             }
-            val resolver = context.contentResolver
-            ContentResolverUtils.bulkDelete(resolver, Filters.Users.CONTENT_URI,
-                    Filters.Users.USER_KEY, false, userKeys, null, null)
-            ContentResolverUtils.bulkDelete(resolver, Filters.Keywords.CONTENT_URI,
-                    Filters.Keywords.VALUE, false, keywords, null, null)
-            ContentResolverUtils.bulkDelete(resolver, Filters.Sources.CONTENT_URI,
-                    Filters.Sources.VALUE, false, sources, null, null)
-            ContentResolverUtils.bulkInsert(resolver, Filters.Users.CONTENT_URI, userValues)
-            ContentResolverUtils.bulkInsert(resolver, Filters.Keywords.CONTENT_URI, keywordValues)
-            ContentResolverUtils.bulkInsert(resolver, Filters.Sources.CONTENT_URI, sourceValues)
+            context?.contentResolver?.let { resolver ->
+                ContentResolverUtils.bulkDelete(resolver, Filters.Users.CONTENT_URI,
+                        Filters.Users.USER_KEY, false, userKeys, null, null)
+                ContentResolverUtils.bulkDelete(resolver, Filters.Keywords.CONTENT_URI,
+                        Filters.Keywords.VALUE, false, keywords, null, null)
+                ContentResolverUtils.bulkDelete(resolver, Filters.Sources.CONTENT_URI,
+                        Filters.Sources.VALUE, false, sources, null, null)
+                ContentResolverUtils.bulkInsert(resolver, Filters.Users.CONTENT_URI, userValues)
+                ContentResolverUtils.bulkInsert(resolver, Filters.Keywords.CONTENT_URI, keywordValues)
+                ContentResolverUtils.bulkInsert(resolver, Filters.Sources.CONTENT_URI, sourceValues)
+            }
         }
         builder.setNegativeButton(android.R.string.cancel, null)
         val dialog = builder.create()
@@ -163,12 +169,15 @@ class AddStatusFilterDialogFragment : BaseDialogFragment() {
         }
 
     private fun getName(manager: UserColorNameManager, value: Any, nameFirst: Boolean): String {
-        if (value is ParcelableUserMention) {
-            return manager.getDisplayName(value.key, value.name, value.screen_name, nameFirst)
-        } else if (value is UserItem) {
-            return manager.getDisplayName(value.key, value.name, value.screen_name, nameFirst)
-        } else
-            return ParseUtils.parseString(value)
+        return when (value) {
+            is ParcelableUserMention -> {
+                manager.getDisplayName(value.key, value.name, value.screen_name, nameFirst)
+            }
+            is UserItem -> {
+                manager.getDisplayName(value.key, value.name, value.screen_name, nameFirst)
+            }
+            else -> ParseUtils.parseString(value)
+        }
     }
 
     internal data class FilterItemInfo(
@@ -193,7 +202,7 @@ class AddStatusFilterDialogFragment : BaseDialogFragment() {
 
     companion object {
 
-        val FRAGMENT_TAG = "add_status_filter"
+        const val FRAGMENT_TAG = "add_status_filter"
 
         private fun createFilteredUser(item: UserItem): ContentValues {
             val values = ContentValues()

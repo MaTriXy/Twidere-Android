@@ -20,7 +20,7 @@
 package org.mariotaku.twidere.adapter
 
 import android.content.Context
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -108,7 +108,7 @@ class ParcelableGroupsAdapter(
                 return LoadIndicatorViewHolder(view)
             }
         }
-        throw IllegalStateException("Unknown view type " + viewType)
+        throw IllegalStateException("Unknown view type $viewType")
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
@@ -142,6 +142,6 @@ class ParcelableGroupsAdapter(
 
     companion object {
 
-        val ITEM_VIEW_TYPE_USER_LIST = 2
+        const val ITEM_VIEW_TYPE_USER_LIST = 2
     }
 }

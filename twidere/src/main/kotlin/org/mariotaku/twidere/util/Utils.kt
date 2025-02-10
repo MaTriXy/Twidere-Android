@@ -34,14 +34,13 @@ import android.net.Uri
 import android.nfc.NfcAdapter
 import android.nfc.NfcAdapter.CreateNdefMessageCallback
 import android.os.BatteryManager
-import android.os.Build
 import android.os.Bundle
-import android.support.annotation.DrawableRes
-import android.support.annotation.StringRes
-import android.support.v4.net.ConnectivityManagerCompat
-import android.support.v4.view.GravityCompat
-import android.support.v4.view.accessibility.AccessibilityEventCompat
-import android.support.v7.app.AppCompatActivity
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
+import androidx.core.net.ConnectivityManagerCompat
+import androidx.core.view.GravityCompat
+import androidx.core.view.accessibility.AccessibilityEventCompat
+import androidx.appcompat.app.AppCompatActivity
 import android.text.TextUtils
 import android.text.format.DateFormat
 import android.text.format.DateUtils
@@ -89,6 +88,8 @@ import org.mariotaku.twidere.provider.TwidereDataStore.CachedUsers
 import org.mariotaku.twidere.util.TwidereLinkify.PATTERN_TWITTER_PROFILE_IMAGES
 import org.mariotaku.twidere.view.TabPagerIndicator
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.*
 import java.util.regex.Pattern
 
@@ -115,12 +116,7 @@ object Utils {
         // Prior to SDK 16, announcements could only be made through FOCUSED
         // events. Jelly Bean (SDK 16) added support for speaking text verbatim
         // using the ANNOUNCEMENT event type.
-        val eventType: Int
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
-            eventType = AccessibilityEvent.TYPE_VIEW_FOCUSED
-        } else {
-            eventType = AccessibilityEventCompat.TYPE_ANNOUNCEMENT
-        }
+        val eventType: Int = AccessibilityEventCompat.TYPE_ANNOUNCEMENT
 
         // Construct an accessibility event with the minimum recommended
         // attributes. An event without a class name or package may be dropped.
@@ -137,10 +133,10 @@ object Utils {
     }
 
     fun deleteMedia(context: Context, uri: Uri): Boolean {
-        try {
-            return PNCUtils.deleteMedia(context, uri)
+        return try {
+            PNCUtils.deleteMedia(context, uri)
         } catch (e: SecurityException) {
-            return false
+            false
         }
 
     }
@@ -164,25 +160,29 @@ object Utils {
 
     fun getAccountKeys(context: Context, args: Bundle?): Array<UserKey>? {
         if (args == null) return null
-        if (args.containsKey(EXTRA_ACCOUNT_KEYS)) {
-            return args.getNullableTypedArray(EXTRA_ACCOUNT_KEYS)
-        } else if (args.containsKey(EXTRA_ACCOUNT_KEY)) {
-            val accountKey = args.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY) ?: return emptyArray()
-            return arrayOf(accountKey)
-        } else if (args.containsKey(EXTRA_ACCOUNT_ID)) {
-            val accountId = args.get(EXTRA_ACCOUNT_ID).toString()
-            try {
-                if (java.lang.Long.parseLong(accountId) <= 0) return null
-            } catch (e: NumberFormatException) {
-                // Ignore
+        when {
+            args.containsKey(EXTRA_ACCOUNT_KEYS) -> {
+                return args.getNullableTypedArray(EXTRA_ACCOUNT_KEYS)
             }
+            args.containsKey(EXTRA_ACCOUNT_KEY) -> {
+                val accountKey = args.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY) ?: return emptyArray()
+                return arrayOf(accountKey)
+            }
+            args.containsKey(EXTRA_ACCOUNT_ID) -> {
+                val accountId = args.get(EXTRA_ACCOUNT_ID).toString()
+                try {
+                    if (java.lang.Long.parseLong(accountId) <= 0) return null
+                } catch (e: NumberFormatException) {
+                    // Ignore
+                }
 
-            val accountKey = DataStoreUtils.findAccountKey(context, accountId)
-            args.putParcelable(EXTRA_ACCOUNT_KEY, accountKey)
-            if (accountKey == null) return arrayOf(UserKey(accountId, null))
-            return arrayOf(accountKey)
+                val accountKey = DataStoreUtils.findAccountKey(context, accountId)
+                args.putParcelable(EXTRA_ACCOUNT_KEY, accountKey)
+                if (accountKey == null) return arrayOf(UserKey(accountId, null))
+                return arrayOf(accountKey)
+            }
+            else -> return null
         }
-        return null
     }
 
     fun getAccountKey(context: Context, args: Bundle?): UserKey? {
@@ -211,7 +211,6 @@ object Utils {
     }
 
     fun isComposeNowSupported(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) return false
         return hasNavBar(context)
     }
 
@@ -305,8 +304,8 @@ object Utils {
 
     fun getQuoteStatus(context: Context?, status: ParcelableStatus): String? {
         if (context == null) return null
-        var quoteFormat: String = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE).getString(
-                KEY_QUOTE_FORMAT, DEFAULT_QUOTE_FORMAT)
+        var quoteFormat: String = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_QUOTE_FORMAT, DEFAULT_QUOTE_FORMAT).orEmpty()
         if (TextUtils.isEmpty(quoteFormat)) {
             quoteFormat = DEFAULT_QUOTE_FORMAT
         }
@@ -348,11 +347,11 @@ object Utils {
     fun hasNavBar(context: Context): Boolean {
         val resources = context.resources ?: return false
         val id = resources.getIdentifier("config_showNavigationBar", "bool", "android")
-        if (id > 0) {
-            return resources.getBoolean(id)
+        return if (id > 0) {
+            resources.getBoolean(id)
         } else {
             // Check for keys
-            return !KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_BACK) && !KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_HOME)
+            !KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_BACK) && !KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_HOME)
         }
     }
 
@@ -461,13 +460,16 @@ object Utils {
     }
 
     fun getInsetsTopWithoutActionBarHeight(context: Context, top: Int): Int {
-        val actionBarHeight: Int
-        if (context is AppCompatActivity) {
-            actionBarHeight = getActionBarHeight(context.supportActionBar)
-        } else if (context is Activity) {
-            actionBarHeight = getActionBarHeight(context.actionBar)
-        } else {
-            return top
+        val actionBarHeight: Int = when (context) {
+            is AppCompatActivity -> {
+                getActionBarHeight(context.supportActionBar)
+            }
+            is Activity -> {
+                getActionBarHeight(context.actionBar)
+            }
+            else -> {
+                return top
+            }
         }
         if (actionBarHeight > top) {
             return top
@@ -516,7 +518,7 @@ object Utils {
     }
 
     internal fun isExtensionUseJSON(info: ResolveInfo?): Boolean {
-        if (info == null || info.activityInfo == null) return false
+        if (info?.activityInfo == null) return false
         val activityInfo = info.activityInfo
         if (activityInfo.metaData != null && activityInfo.metaData.containsKey(METADATA_KEY_EXTENSION_USE_JSON))
             return activityInfo.metaData.getBoolean(METADATA_KEY_EXTENSION_USE_JSON)
@@ -536,7 +538,7 @@ object Utils {
         return 0
     }
 
-    fun getActionBarHeight(actionBar: android.support.v7.app.ActionBar?): Int {
+    fun getActionBarHeight(actionBar: androidx.appcompat.app.ActionBar?): Int {
         if (actionBar == null) return 0
         val context = actionBar.themedContext
         val tv = TypedValue()
@@ -581,12 +583,11 @@ object Utils {
      * @param message String
      */
     fun sendPebbleNotification(context: Context, title: String?, message: String) {
-        val appName: String
 
-        if (title == null) {
-            appName = context.getString(R.string.app_name)
+        val appName: String = if (title == null) {
+            context.getString(R.string.app_name)
         } else {
-            appName = "${context.getString(R.string.app_name)} - $title"
+            "${context.getString(R.string.app_name)} - $title"
         }
 
         if (TextUtils.isEmpty(message)) return
@@ -607,4 +608,16 @@ object Utils {
 
     }
 
+    fun copyStream(input: InputStream, output: OutputStream, length: Int) {
+        val buffer = ByteArray(1024)
+        var bytesRead = 0
+        do {
+            val read = input.read(buffer)
+            if (read == -1) {
+                break
+            }
+            output.write(buffer, 0, read)
+            bytesRead += read
+        } while (bytesRead <= length)
+    }
 }

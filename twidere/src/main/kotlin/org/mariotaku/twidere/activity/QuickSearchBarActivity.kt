@@ -28,12 +28,13 @@ import android.database.Cursor
 import android.graphics.PorterDuff.Mode
 import android.net.Uri
 import android.os.Bundle
-import android.support.v4.app.LoaderManager.LoaderCallbacks
-import android.support.v4.content.CursorLoader
-import android.support.v4.content.Loader
-import android.support.v4.view.ViewCompat
-import android.support.v4.view.WindowInsetsCompat
-import android.support.v4.widget.CursorAdapter
+import androidx.loader.app.LoaderManager
+import androidx.loader.app.LoaderManager.LoaderCallbacks
+import androidx.loader.content.CursorLoader
+import androidx.loader.content.Loader
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.cursoradapter.widget.CursorAdapter
 import android.text.Editable
 import android.text.TextUtils
 import android.text.TextWatcher
@@ -157,7 +158,7 @@ class QuickSearchBarActivity : BaseActivity(), OnClickListener, LoaderCallbacks<
             searchQuery.setSelection(searchQuery.length())
         }
 
-        supportLoaderManager.initLoader(0, null, this)
+        LoaderManager.getInstance(this).initLoader(0, null, this)
 
         updateSubmitButton()
         promotionService.loadBanner(adContainer)
@@ -171,7 +172,7 @@ class QuickSearchBarActivity : BaseActivity(), OnClickListener, LoaderCallbacks<
     override fun onDismiss(listView: ListView, reverseSortedPositions: IntArray) {
         val adapter = suggestionsList.adapter as SuggestionsAdapter
         val ids = LongArray(reverseSortedPositions.size)
-        for (i in 0 until reverseSortedPositions.size) {
+        for (i in reverseSortedPositions.indices) {
             val position = reverseSortedPositions[i]
             val item = adapter.getSuggestionItem(position) ?: return
             ids[i] = item._id
@@ -179,7 +180,7 @@ class QuickSearchBarActivity : BaseActivity(), OnClickListener, LoaderCallbacks<
         adapter.addRemovedPositions(reverseSortedPositions)
         ContentResolverUtils.bulkDelete(contentResolver, SearchHistory.CONTENT_URI, SearchHistory._ID,
                 false, ids, null, null)
-        supportLoaderManager.restartLoader(0, null, this)
+        LoaderManager.getInstance(this).restartLoader(0, null, this)
     }
 
     override fun onClick(v: View) {
@@ -215,6 +216,7 @@ class QuickSearchBarActivity : BaseActivity(), OnClickListener, LoaderCallbacks<
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
             REQUEST_SCAN_QR -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
@@ -297,7 +299,7 @@ class QuickSearchBarActivity : BaseActivity(), OnClickListener, LoaderCallbacks<
     }
 
     override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-        supportLoaderManager.restartLoader(0, null, this)
+        LoaderManager.getInstance(this).restartLoader(0, null, this)
     }
 
     override fun onNothingSelected(parent: AdapterView<*>) {
@@ -504,7 +506,7 @@ class QuickSearchBarActivity : BaseActivity(), OnClickListener, LoaderCallbacks<
         private fun getActualPosition(position: Int): Int {
             var skipped = 0
             for (i in 0 until removedPositions.size) {
-                if (position + skipped >= removedPositions.get(i)) {
+                if (position + skipped >= removedPositions[i]) {
                     skipped++
                 }
             }
@@ -537,10 +539,10 @@ class QuickSearchBarActivity : BaseActivity(), OnClickListener, LoaderCallbacks<
 
         companion object {
 
-            internal val VIEW_TYPE_SEARCH_HISTORY = 0
-            internal val VIEW_TYPE_SAVED_SEARCH = 1
-            internal val VIEW_TYPE_USER_SUGGESTION_ITEM = 2
-            internal val VIEW_TYPE_USER_SCREEN_NAME = 3
+            internal const val VIEW_TYPE_SEARCH_HISTORY = 0
+            internal const val VIEW_TYPE_SAVED_SEARCH = 1
+            internal const val VIEW_TYPE_USER_SUGGESTION_ITEM = 2
+            internal const val VIEW_TYPE_USER_SCREEN_NAME = 3
         }
     }
 

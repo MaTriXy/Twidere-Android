@@ -29,7 +29,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.drawable.Drawable
-import android.support.v4.content.FixedAsyncTaskLoader
+import androidx.loader.content.FixedAsyncTaskLoader
 import org.mariotaku.twidere.TwidereConstants.*
 import java.text.Collator
 import java.util.*
@@ -111,12 +111,41 @@ class ExtensionsListLoader(
 
         constructor(info: ApplicationInfo, pm: PackageManager) : this(
                 info.packageName,
-                info.loadLabel(pm) ?: info.packageName,
+                info.loadLabel(pm),
                 info.loadDescription(pm),
                 info.loadIcon(pm),
                 info.metaData?.getString(METADATA_KEY_EXTENSION_PERMISSIONS)?.split('|')?.filterNot(String::isEmpty)?.toTypedArray(),
                 info.metaData?.getString(METADATA_KEY_EXTENSION_SETTINGS)
         )
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as ExtensionInfo
+
+            if (packageName != other.packageName) return false
+            if (label != other.label) return false
+            if (description != other.description) return false
+            if (icon != other.icon) return false
+            if (permissions != null) {
+                if (other.permissions == null) return false
+                if (!permissions.contentEquals(other.permissions)) return false
+            } else if (other.permissions != null) return false
+            if (settings != other.settings) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = packageName.hashCode()
+            result = 31 * result + label.hashCode()
+            result = 31 * result + (description?.hashCode() ?: 0)
+            result = 31 * result + (icon?.hashCode() ?: 0)
+            result = 31 * result + (permissions?.contentHashCode() ?: 0)
+            result = 31 * result + (settings?.hashCode() ?: 0)
+            return result
+        }
 
     }
 
@@ -126,8 +155,8 @@ class ExtensionsListLoader(
      */
     class InterestingConfigChanges {
 
-        internal val lastConfiguration = Configuration()
-        internal var lastDensity: Int = 0
+        private val lastConfiguration = Configuration()
+        private var lastDensity: Int = 0
 
         internal fun applyNewConfig(res: Resources): Boolean {
             val configChanges = lastConfiguration.updateFrom(res.configuration)
@@ -165,7 +194,7 @@ class ExtensionsListLoader(
         }
     }
 
-    class ExtensionInfoComparator(val collator: Collator) : Comparator<ExtensionInfo> {
+    class ExtensionInfoComparator(private val collator: Collator) : Comparator<ExtensionInfo> {
         override fun compare(o1: ExtensionInfo, o2: ExtensionInfo): Int {
             val label1 = o1.label.toString()
             val label2 = o2.label.toString()

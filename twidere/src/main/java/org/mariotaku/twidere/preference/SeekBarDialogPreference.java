@@ -24,9 +24,9 @@ import android.content.res.TypedArray;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
-import android.support.v7.preference.DialogPreference;
-import android.support.v7.preference.PreferenceFragmentCompat;
+import androidx.annotation.NonNull;
+import androidx.preference.DialogPreference;
+import androidx.preference.PreferenceFragmentCompat;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
@@ -188,7 +188,7 @@ public class SeekBarDialogPreference extends DialogPreference implements IDialog
     public void displayDialog(@NonNull PreferenceFragmentCompat fragment) {
         SeekBarDialogPreferenceFragment df = SeekBarDialogPreferenceFragment.newInstance(getKey());
         df.setTargetFragment(fragment, 0);
-        df.show(fragment.getFragmentManager(), getKey());
+        df.show(fragment.getParentFragmentManager(), getKey());
     }
 
     public static class SeekBarDialogPreferenceFragment extends ThemedPreferenceDialogFragmentCompat {

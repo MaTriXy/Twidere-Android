@@ -28,20 +28,20 @@ import android.content.Intent
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
-import android.support.v4.app.DialogFragment
-import android.support.v4.app.FragmentActivity
-import android.support.v4.app.LoaderManager
-import android.support.v4.content.FixedAsyncTaskLoader
-import android.support.v4.content.Loader
-import android.support.v7.app.AlertDialog
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.FixedLinearLayoutManager
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
-import android.support.v7.widget.Toolbar
 import android.view.*
 import android.widget.CompoundButton
 import android.widget.EditText
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
+import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.FragmentActivity
+import androidx.loader.app.LoaderManager
+import androidx.loader.content.FixedAsyncTaskLoader
+import androidx.loader.content.Loader
+import androidx.recyclerview.widget.FixedLinearLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.RequestManager
 import kotlinx.android.synthetic.main.activity_home_content.view.*
 import kotlinx.android.synthetic.main.fragment_messages_conversation_info.*
@@ -72,7 +72,6 @@ import org.mariotaku.twidere.adapter.iface.IItemCountsAdapter
 import org.mariotaku.twidere.annotation.AccountType
 import org.mariotaku.twidere.annotation.ImageShapeStyle
 import org.mariotaku.twidere.annotation.ProfileImageSize
-import org.mariotaku.twidere.constant.IntentConstants
 import org.mariotaku.twidere.constant.IntentConstants.*
 import org.mariotaku.twidere.constant.nameFirstKey
 import org.mariotaku.twidere.constant.profileImageStyleKey
@@ -107,8 +106,8 @@ import java.lang.ref.WeakReference
 class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
         LoaderManager.LoaderCallbacks<ParcelableMessageConversation?> {
 
-    private val accountKey: UserKey get() = arguments.getParcelable(EXTRA_ACCOUNT_KEY)
-    private val conversationId: String get() = arguments.getString(EXTRA_CONVERSATION_ID)
+    private val accountKey: UserKey get() = arguments?.getParcelable(EXTRA_ACCOUNT_KEY)!!
+    private val conversationId: String get() = arguments?.getString(EXTRA_CONVERSATION_ID)!!
 
     private lateinit var adapter: ConversationInfoAdapter
     private lateinit var itemDecoration: ConversationInfoDecoration
@@ -121,6 +120,7 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
+        val context = context ?: return
         setHasOptionsMenu(true)
         val activity = this.activity
 
@@ -138,7 +138,7 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
 
             override fun onAddUserClick(position: Int) {
                 val conversation = adapter.conversation ?: return
-                val intent = Intent(IntentConstants.INTENT_ACTION_SELECT_USER)
+                val intent = Intent(INTENT_ACTION_SELECT_USER)
                 intent.putExtra(EXTRA_ACCOUNT_KEY, conversation.account_key)
                 intent.setClass(context, UserSelectorActivity::class.java)
                 startActivityForResult(intent, REQUEST_CONVERSATION_ADD_USER)
@@ -181,15 +181,16 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
             }
         }
 
-        loaderManager.initLoader(0, null, this)
+        LoaderManager.getInstance(this).initLoader(0, null, this)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         when (requestCode) {
             REQUEST_CONVERSATION_ADD_USER -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
-                    val user = data.getParcelableExtra<ParcelableUser>(EXTRA_USER)
-                    performAddParticipant(user)
+                    data.getParcelableExtra<ParcelableUser>(EXTRA_USER)?.let { user ->
+                        performAddParticipant(user)
+                    }
                 }
             }
             REQUEST_PICK_MEDIA -> {
@@ -249,17 +250,18 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
     }
 
     override fun onCreateLoader(id: Int, args: Bundle?): Loader<ParcelableMessageConversation?> {
-        return ConversationInfoLoader(context, accountKey, conversationId)
+        return ConversationInfoLoader(requireContext(), accountKey, conversationId)
     }
 
-    override fun onLoaderReset(loader: Loader<ParcelableMessageConversation?>?) {
+    override fun onLoaderReset(loader: Loader<ParcelableMessageConversation?>) {
     }
 
-    override fun onLoadFinished(loader: Loader<ParcelableMessageConversation?>?, data: ParcelableMessageConversation?) {
+    override fun onLoadFinished(loader: Loader<ParcelableMessageConversation?>, data: ParcelableMessageConversation?) {
         if (data == null) {
             activity?.finish()
             return
         }
+        val context = context ?: return
 
         val name = data.getTitle(context, userColorNameManager, preferences[nameFirstKey]).first
         val summary = data.getSubtitle(context)
@@ -297,8 +299,8 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
     private fun performDestroyConversation() {
         ProgressDialogFragment.show(childFragmentManager, "leave_conversation_progress")
         val weakThis = WeakReference(this)
-        val task = DestroyConversationTask(context, accountKey, conversationId)
-        task.callback = callback@ { succeed ->
+        val task = DestroyConversationTask(requireContext(), accountKey, conversationId)
+        task.callback = callback@{ succeed ->
             val f = weakThis.get() ?: return@callback
             f.dismissDialogThen("leave_conversation_progress") {
                 if (succeed) {
@@ -313,8 +315,8 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
     private fun performClearMessages() {
         ProgressDialogFragment.show(childFragmentManager, "clear_messages_progress")
         val weakThis = WeakReference(this)
-        val task = ClearMessagesTask(context, accountKey, conversationId)
-        task.callback = callback@ { succeed ->
+        val task = ClearMessagesTask(requireContext(), accountKey, conversationId)
+        task.callback = callback@{ succeed ->
             val f = weakThis.get() ?: return@callback
             f.dismissDialogThen("clear_messages_progress") {
                 if (succeed) {
@@ -328,11 +330,11 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
     private fun performAddParticipant(user: ParcelableUser) {
         ProgressDialogFragment.show(childFragmentManager, "add_participant_progress")
         val weakThis = WeakReference(this)
-        val task = AddParticipantsTask(context, accountKey, conversationId, listOf(user))
-        task.callback = callback@ { succeed ->
+        val task = AddParticipantsTask(requireContext(), accountKey, conversationId, listOf(user))
+        task.callback = callback@ {
             val f = weakThis.get() ?: return@callback
             f.dismissDialogThen("add_participant_progress") {
-                loaderManager.restartLoader(0, null, this)
+                LoaderManager.getInstance(this).restartLoader(0, null, this)
             }
         }
         TaskStarter.execute(task)
@@ -341,11 +343,11 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
     private fun performSetNotificationDisabled(disabled: Boolean) {
         ProgressDialogFragment.show(childFragmentManager, "set_notifications_disabled_progress")
         val weakThis = WeakReference(this)
-        val task = SetConversationNotificationDisabledTask(context, accountKey, conversationId, disabled)
-        task.callback = callback@ { _ ->
+        val task = SetConversationNotificationDisabledTask(requireContext(), accountKey, conversationId, disabled)
+        task.callback = callback@{ _ ->
             val f = weakThis.get() ?: return@callback
             f.dismissDialogThen("set_notifications_disabled_progress") {
-                loaderManager.restartLoader(0, null, this)
+                LoaderManager.getInstance(this).restartLoader(0, null, this)
             }
         }
         TaskStarter.execute(task)
@@ -361,13 +363,15 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
                 }
             }
             "avatar" -> {
-                val intent = ThemedMediaPickerActivity.withThemed(context)
-                        .allowMultiple(false)
-                        .aspectRatio(1, 1)
-                        .containsVideo(false)
-                        .addEntry(getString(R.string.action_remove_conversation_avatar),
-                                "remove_avatar", RESULT_CODE_REMOVE_CONVERSATION_AVATAR)
-                        .build()
+                val intent = context?.let {
+                    ThemedMediaPickerActivity.withThemed(it)
+                            .allowMultiple(false)
+                            .aspectRatio(1, 1)
+                            .containsVideo(false)
+                            .addEntry(getString(R.string.action_remove_conversation_avatar),
+                                    "remove_avatar", RESULT_CODE_REMOVE_CONVERSATION_AVATAR)
+                            .build()
+                }
                 startActivityForResult(intent, REQUEST_PICK_MEDIA)
             }
         }
@@ -375,7 +379,7 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
 
     private fun performSetConversationName(name: String) {
         val conversationId = this.conversationId
-        performUpdateInfo("set_name_progress", updateAction = updateAction@ { fragment, account, microBlog ->
+        performUpdateInfo("set_name_progress", updateAction = updateAction@{ fragment, account, microBlog ->
             val context = fragment.context
             when (account.type) {
                 AccountType.TWITTER -> {
@@ -392,11 +396,11 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
 
     private fun performSetConversationAvatar(uri: Uri?) {
         val conversationId = this.conversationId
-        performUpdateInfo("set_avatar_progress", updateAction = updateAction@ { fragment, account, microBlog ->
+        performUpdateInfo("set_avatar_progress", updateAction = updateAction@{ fragment, account, microBlog ->
             val context = fragment.context
             when (account.type) {
                 AccountType.TWITTER -> {
-                    if (account.isOfficial(context)) {
+                    if (account.isOfficial(context) && context != null) {
                         val upload = account.newMicroBlogInstance(context, cls = TwitterUpload::class.java)
                         if (uri == null) {
                             val result = microBlog.updateDmConversationAvatar(conversationId, null)
@@ -453,7 +457,7 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
             val fragment = weakThis.get() ?: throw InterruptedException()
             val account = AccountUtils.getAccountDetails(AccountManager.get(fragment.context),
                     accountKey, true) ?: throw MicroBlogException("No account")
-            val microBlog = account.newMicroBlogInstance(fragment.context, cls = MicroBlog::class.java)
+            val microBlog = account.newMicroBlogInstance(fragment.requireContext(), cls = MicroBlog::class.java)
             return@task updateAction(fragment, account, microBlog)
         }.then { result ->
             val fragment = weakThis.get() ?: throw InterruptedException()
@@ -461,12 +465,12 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
             val where = Expression.and(Expression.equalsArgs(Conversations.ACCOUNT_KEY),
                     Expression.equalsArgs(Conversations.CONVERSATION_ID)).sql
             val whereArgs = arrayOf(accountKey.toString(), conversationId)
-            fragment.context.contentResolver.update(Conversations.CONTENT_URI, values, where,
+            fragment.context?.contentResolver?.update(Conversations.CONTENT_URI, values, where,
                     whereArgs)
         }.alwaysUi {
             val fragment = weakThis.get() ?: return@alwaysUi
             fragment.dismissDialogThen(tag) {
-                loaderManager.restartLoader(0, null, this)
+                LoaderManager.getInstance(this).restartLoader(0, null, this)
             }
         }
     }
@@ -579,26 +583,24 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
         }
 
         override fun getItemViewType(position: Int): Int {
-            val countIndex = itemCounts.getItemCountIndex(position)
-            when (countIndex) {
-                ITEM_INDEX_TOP_SPACE -> return VIEW_TYPE_TOP_SPACE
-                ITEM_INDEX_HEADER -> return VIEW_TYPE_HEADER
-                ITEM_INDEX_ITEM -> return VIEW_TYPE_USER
-                ITEM_INDEX_ADD_USER -> return VIEW_TYPE_ADD_USER
-                ITEM_INDEX_SPACE -> return VIEW_TYPE_BOTTOM_SPACE
+            return when (val countIndex = itemCounts.getItemCountIndex(position)) {
+                ITEM_INDEX_TOP_SPACE -> VIEW_TYPE_TOP_SPACE
+                ITEM_INDEX_HEADER -> VIEW_TYPE_HEADER
+                ITEM_INDEX_ITEM -> VIEW_TYPE_USER
+                ITEM_INDEX_ADD_USER -> VIEW_TYPE_ADD_USER
+                ITEM_INDEX_SPACE -> VIEW_TYPE_BOTTOM_SPACE
                 else -> throw UnsupportedCountIndexException(countIndex, position)
             }
         }
 
         override fun getItemId(position: Int): Long {
-            val countIndex = itemCounts.getItemCountIndex(position)
-            when (countIndex) {
+            return when (val countIndex = itemCounts.getItemCountIndex(position)) {
                 ITEM_INDEX_ITEM -> {
                     val user = getUser(position)!!
-                    return (countIndex.toLong() shl 32) or user.hashCode().toLong()
+                    (countIndex.toLong() shl 32) or user.hashCode().toLong()
                 }
                 else -> {
-                    return (countIndex.toLong() shl 32) or getItemViewType(position).toLong()
+                    (countIndex.toLong() shl 32) or getItemViewType(position).toLong()
                 }
             }
         }
@@ -732,7 +734,7 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
             val actions = arrayOf(Action(getString(R.string.action_edit_conversation_name), "name"),
                     Action(getString(R.string.action_edit_conversation_avatar), "avatar"))
-            val builder = AlertDialog.Builder(context)
+            val builder = AlertDialog.Builder(requireContext())
             builder.setItems(actions.mapToArray(Action::title)) { _, which ->
                 val action = actions[which]
                 (parentFragment as MessageConversationInfoFragment).openEditAction(action.type)
@@ -748,7 +750,7 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
 
     class EditNameDialogFragment : BaseDialogFragment() {
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-            val builder = AlertDialog.Builder(context)
+            val builder = AlertDialog.Builder(requireContext())
             builder.setView(R.layout.dialog_edit_conversation_name)
             builder.setNegativeButton(android.R.string.cancel, null)
             builder.setPositiveButton(android.R.string.ok) { dialog, _ ->
@@ -764,7 +766,7 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
 
     class DestroyConversationConfirmDialogFragment : BaseDialogFragment() {
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-            val builder = AlertDialog.Builder(context)
+            val builder = AlertDialog.Builder(requireContext())
             builder.setMessage(R.string.message_destroy_conversation_confirm)
             builder.setPositiveButton(R.string.action_leave_conversation) { _, _ ->
                 (parentFragment as MessageConversationInfoFragment).performDestroyConversation()
@@ -779,7 +781,7 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
 
     class ClearMessagesConfirmDialogFragment : BaseDialogFragment() {
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-            val builder = AlertDialog.Builder(context)
+            val builder = AlertDialog.Builder(requireContext())
             builder.setMessage(R.string.message_clear_messages_confirm)
             builder.setPositiveButton(R.string.action_clear_messages) { _, _ ->
                 (parentFragment as MessageConversationInfoFragment).performClearMessages()
@@ -801,8 +803,7 @@ class MessageConversationInfoFragment : BaseFragment(), IToolBarSupportFragment,
             val position = parent.getChildLayoutPosition(view)
             if (position < 0) return
             val itemCounts = adapter.itemCounts
-            val countIndex = itemCounts.getItemCountIndex(position)
-            when (countIndex) {
+            when (val countIndex = itemCounts.getItemCountIndex(position)) {
                 ConversationInfoAdapter.ITEM_INDEX_TOP_SPACE,
                 ConversationInfoAdapter.ITEM_INDEX_SPACE,
                 ConversationInfoAdapter.ITEM_INDEX_ADD_USER -> {

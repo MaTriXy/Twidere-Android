@@ -21,10 +21,10 @@ package org.mariotaku.twidere.fragment
 
 import android.content.Context
 import android.os.Bundle
-import android.support.v4.app.LoaderManager.LoaderCallbacks
-import android.support.v4.app.hasRunningLoadersSafe
-import android.support.v4.content.Loader
-import android.support.v7.widget.RecyclerView
+import androidx.loader.app.LoaderManager
+import androidx.loader.app.LoaderManager.LoaderCallbacks
+import androidx.loader.app.hasRunningLoadersSafe
+import androidx.loader.content.Loader
 import android.view.KeyEvent
 import com.bumptech.glide.RequestManager
 import kotlinx.android.synthetic.main.fragment_content_recyclerview.*
@@ -55,7 +55,7 @@ abstract class ParcelableUserListsFragment : AbsContentListRecyclerViewFragment<
         private set
 
     protected val accountKey: UserKey?
-        get() = arguments.getParcelable<UserKey?>(EXTRA_ACCOUNT_KEY)
+        get() = arguments?.getParcelable<UserKey?>(EXTRA_ACCOUNT_KEY)
 
     val data: List<ParcelableUserList>?
         get() = adapter.getData()
@@ -63,7 +63,7 @@ abstract class ParcelableUserListsFragment : AbsContentListRecyclerViewFragment<
     override var refreshing: Boolean
         get() {
             if (context == null || isDetached) return false
-            return loaderManager.hasRunningLoadersSafe()
+            return LoaderManager.getInstance(this).hasRunningLoadersSafe()
         }
         set(value) {
             super.refreshing = value
@@ -73,12 +73,8 @@ abstract class ParcelableUserListsFragment : AbsContentListRecyclerViewFragment<
         return ParcelableUserListsAdapter(context, this.requestManager)
     }
 
-    override fun setupRecyclerView(context: Context, recyclerView: RecyclerView) {
-        super.setupRecyclerView(context, recyclerView)
-    }
-
     protected fun hasMoreData(data: List<ParcelableUserList>?): Boolean {
-        return data == null || !data.isEmpty()
+        return data == null || data.isNotEmpty()
     }
 
     override fun onLoadFinished(loader: Loader<List<ParcelableUserList>>, data: List<ParcelableUserList>) {
@@ -108,7 +104,7 @@ abstract class ParcelableUserListsFragment : AbsContentListRecyclerViewFragment<
         val loaderArgs = Bundle(arguments)
         loaderArgs.putBoolean(EXTRA_FROM_USER, true)
         loaderArgs.putParcelable(EXTRA_PAGINATION, nextPagination)
-        loaderManager.restartLoader(0, loaderArgs, this)
+        LoaderManager.getInstance(this).restartLoader(0, loaderArgs, this)
     }
 
     override fun handleKeyboardShortcutSingle(handler: KeyboardShortcutsHandler, keyCode: Int,
@@ -135,13 +131,13 @@ abstract class ParcelableUserListsFragment : AbsContentListRecyclerViewFragment<
                 this)
         val loaderArgs = Bundle(arguments)
         loaderArgs.putBoolean(EXTRA_FROM_USER, true)
-        loaderManager.initLoader(0, loaderArgs, this)
+        LoaderManager.getInstance(this).initLoader(0, loaderArgs, this)
     }
 
-    override fun onCreateLoader(id: Int, args: Bundle): Loader<List<ParcelableUserList>> {
-        val fromUser = args.getBoolean(EXTRA_FROM_USER)
-        args.remove(EXTRA_FROM_USER)
-        return onCreateUserListsLoader(activity, args, fromUser)
+    override fun onCreateLoader(id: Int, args: Bundle?): Loader<List<ParcelableUserList>> {
+        val fromUser = args?.getBoolean(EXTRA_FROM_USER)
+        args?.remove(EXTRA_FROM_USER)
+        return onCreateUserListsLoader(requireActivity(), args!!, fromUser!!)
     }
 
     override fun onLoaderReset(loader: Loader<List<ParcelableUserList>>) {
@@ -152,7 +148,7 @@ abstract class ParcelableUserListsFragment : AbsContentListRecyclerViewFragment<
 
     override fun onUserListClick(holder: UserListViewHolder, position: Int) {
         val userList = adapter.getUserList(position) ?: return
-        IntentUtils.openUserListDetails(activity, userList)
+        activity?.let { IntentUtils.openUserListDetails(it, userList) }
     }
 
     override fun onUserListLongClick(holder: UserListViewHolder, position: Int): Boolean {
@@ -164,7 +160,7 @@ abstract class ParcelableUserListsFragment : AbsContentListRecyclerViewFragment<
         val loaderArgs = Bundle(arguments).apply {
             this[EXTRA_FROM_USER] = true
         }
-        loaderManager.restartLoader(0, loaderArgs, this)
+        LoaderManager.getInstance(this).restartLoader(0, loaderArgs, this)
         showProgress()
         return true
     }

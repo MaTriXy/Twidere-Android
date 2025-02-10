@@ -24,7 +24,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.media.RingtoneManager
 import android.net.Uri
-import android.support.v4.content.ContextCompat
+import androidx.core.content.ContextCompat
 import android.text.TextUtils
 import org.mariotaku.kpreferences.get
 import org.mariotaku.ktextension.contains
@@ -44,11 +44,7 @@ class AccountPreferences(
     val defaultNotificationLightColor: Int
         get() {
             val a = AccountUtils.getAccountDetails(AccountManager.get(context), accountKey, true)
-            if (a != null) {
-                return a.color
-            } else {
-                return ContextCompat.getColor(context, R.color.branding_color)
-            }
+            return a?.color ?: ContextCompat.getColor(context, R.color.branding_color)
         }
 
     val directMessagesNotificationType: Int
@@ -70,10 +66,10 @@ class AccountPreferences(
     val notificationRingtone: Uri
         get() {
             val ringtone = accountPreferences.getString(KEY_NOTIFICATION_RINGTONE, null)
-            if (TextUtils.isEmpty(ringtone)) {
-                return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            return if (TextUtils.isEmpty(ringtone)) {
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             } else {
-                return Uri.parse(ringtone)
+                Uri.parse(ringtone)
             }
         }
 
@@ -94,21 +90,6 @@ class AccountPreferences(
 
     val isAutoRefreshTrendsEnabled: Boolean
         get() = accountPreferences.getBoolean(KEY_AUTO_REFRESH_TRENDS, DEFAULT_AUTO_REFRESH_TRENDS)
-
-    val isStreamingEnabled: Boolean
-        get() = accountPreferences.getBoolean(KEY_ENABLE_STREAMING, false)
-
-    val isStreamHomeTimelineEnabled: Boolean
-        get() = accountPreferences.getBoolean("stream_home_timeline", true)
-
-    val isStreamInteractionsEnabled: Boolean
-        get() = accountPreferences.getBoolean("stream_interactions", true)
-
-    val isStreamDirectMessagesEnabled: Boolean
-        get() = accountPreferences.getBoolean("stream_direct_messages", true)
-
-    val isStreamNotificationUsersEnabled: Boolean
-        get() = accountPreferences.getBoolean("stream_notification_users", true)
 
     val isDirectMessagesNotificationEnabled: Boolean
         get() = accountPreferences.getBoolean(KEY_DIRECT_MESSAGES_NOTIFICATION,

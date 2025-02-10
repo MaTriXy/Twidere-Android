@@ -1,39 +1,50 @@
-import fr.avianey.androidsvgdrawable.gradle.SvgDrawableTask
-
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlin-android-extensions'
-apply plugin: 'androidsvgdrawable'
+apply plugin: 'imgenie'
 
 buildscript {
+    ext {
+        enableGoogleVariant = project.file('google-services.json').exists()
+    }
     repositories {
+        maven { url "https://jitpack.io" }
         jcenter()
+        if (enableGoogleVariant) {
+            // START Non-FOSS component
+            google()
+            // END Non-FOSS component
+        }
     }
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}"
         classpath "org.jetbrains.kotlin:kotlin-android-extensions:${kotlinVersion}"
-        classpath("fr.avianey.androidsvgdrawable:gradle-plugin:${pluginVersions['AndroidSvgDrawable']}") {
-            // should be excluded to avoid conflict
-            exclude group: 'xerces'
-        }
+        classpath 'com.github.mariotaku:imgenie-plugin:0.2.6'
 
-        // START Non-FOSS component
-        classpath "com.google.gms:google-services:${pluginVersions['PlayServices']}"
-        // END Non-FOSS component
+        if (enableGoogleVariant) {
+            // START Non-FOSS component
+            classpath 'com.google.gms:google-services:4.3.3'
+            // END Non-FOSS component
+        }
     }
 }
 
-android {
+repositories {
+    mavenLocal()
+    maven { url "https://s3.amazonaws.com/repo.commonsware.com" }
+    flatDir { dirs "$projectDir/lib" }
+}
 
+android {
     compileSdkVersion globalCompileSdkVersion
     buildToolsVersion globalBuildToolsVersion
 
     defaultConfig {
         applicationId "org.mariotaku.twidere"
-        minSdkVersion 14
-        targetSdkVersion 26
+        minSdkVersion globalMinSdkVersion
+        targetSdkVersion globalTargetSdkVersion
         versionCode projectVersionCode
         versionName projectVersionName
         multiDexEnabled true
@@ -41,26 +52,18 @@ android {
         buildConfigField 'boolean', 'LEAK_CANARY_ENABLED', 'Boolean.parseBoolean("false")'
         buildConfigField 'boolean', 'SHOW_CUSTOM_TOKEN_DIALOG', 'Boolean.parseBoolean("false")'
 
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    aaptOptions {
-        additionalParameters "--no-version-vectors"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     flavorDimensions 'channel'
-
     productFlavors {
-        // START Non-FOSS component
-        google {
-            dimension 'channel'
+        if (enableGoogleVariant) {
+            // START Non-FOSS component
+            google {
+                dimension 'channel'
+            }
+            // END Non-FOSS component
         }
-        // END Non-FOSS component
         fdroid {
             dimension 'channel'
         }
@@ -88,9 +91,6 @@ android {
                 signingConfig signingConfigs.twidere
             }
 
-            multiDexEnabled true
-            minifyEnabled false
-            shrinkResources false
             resValue("bool", "debug", "true")
         }
         release {
@@ -98,7 +98,6 @@ android {
                 signingConfig signingConfigs.twidere
             }
 
-            multiDexEnabled true
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -108,8 +107,17 @@ android {
 
     sourceSets.each {
         it.res.srcDirs += project.files("src/${it.name}/res-localized")
-        it.res.srcDirs += project.files("src/${it.name}/res-svg2png")
         it.java.srcDirs += "src/${it.name}/kotlin"
+    }
+
+    compileOptions {
+        encoding = 'UTF-8'
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    aaptOptions {
+        additionalParameters "--no-version-vectors"
     }
 
     testOptions {
@@ -117,18 +125,13 @@ android {
     }
 
     lintOptions {
+        checkReleaseBuilds false
         abortOnError false
-        lintConfig rootProject.file('lint.xml')
+        disable 'MissingTranslation', 'PluralsCandidate'
     }
 
     packagingOptions {
-        exclude 'META-INF/LICENSE'
-        exclude 'META-INF/NOTICE'
-        exclude 'META-INF/DEPENDENCIES'
-        exclude 'META-INF/README'
-        exclude 'META-INF/INDEX.LIST'
-        exclude 'META-INF/maven/**'
-        exclude 'META-INF/*.kotlin_module'
+        exclude 'META-INF/*'
         exclude 'kotlin/**.kotlin_builtins'
         exclude 'org/osmdroid/**.png'
         exclude 'javax/annotation/**.java'
@@ -136,171 +139,193 @@ android {
         exclude 'jsr305_annotations/**'
         exclude 'error_prone/**'
         exclude 'third_party/java_src/**'
-        exclude 'sdk-version.​txt'
+        exclude 'sdk-version.txt'
         exclude 'build-data.properties'
     }
-
 }
 
-repositories {
-    mavenLocal()
-    maven { url 'https://s3.amazonaws.com/repo.commonsware.com' }
-    flatDir { dirs "$projectDir/lib" }
+task buildTranslationArray {
+    def foundLocales = new StringBuilder()
+    foundLocales.append("new String[]{")
+
+    fileTree("src/main/res-localized").visit { FileVisitDetails details ->
+        if (details.file.path.endsWith("strings.xml")) {
+            def languageCode = details.file.parentFile.name.replaceAll('values-', '').replaceAll('-r', '-')
+            languageCode = (languageCode == "values") ? "en" : languageCode
+            foundLocales.append("\"").append(languageCode).append("\"").append(",")
+        }
+    }
+
+    foundLocales.append("}")
+    //Don't forget to remove the trailing comma
+    def foundLocalesString = foundLocales.toString().replaceAll(',}', '}')
+    android.defaultConfig.buildConfigField "String[]", "TRANSLATION_ARRAY", foundLocalesString
+}
+
+preBuild.dependsOn buildTranslationArray
+
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
+
+ext {
+    libVersions = [
+            Kovenant          : '3.3.0',
+            Mime4J            : '0.7.2',
+            Dagger            : '2.32',
+            Exoplayer         : '2.13.2',
+            Glide             : '4.11.0',
+            MediaViewerLibrary: '0.9.23',
+            Stetho            : '1.5.1',
+    ]
 }
 
 dependencies {
-//    wearApp project(':twidere.wear')
-    kapt "com.bluelinelabs:logansquare-compiler:${libVersions['LoganSquare']}"
-    kapt "com.hannesdorfmann.parcelableplease:processor:${libVersions['ParcelablePlease']}"
-    kapt "com.google.dagger:dagger-compiler:${libVersions['Dagger']}"
-    kapt "com.github.mariotaku.ObjectCursor:processor:${libVersions['ObjectCursor']}"
-
     implementation project(':twidere.component.common')
     implementation project(':twidere.component.nyan')
 
-    // START Non-FOSS component
-    googleImplementation "com.google.android.gms:play-services-maps:${libVersions['PlayServices']}"
-    googleImplementation "com.google.android.gms:play-services-auth:${libVersions['PlayServices']}"
-    googleImplementation "com.google.android.gms:play-services-ads:${libVersions['PlayServices']}"
-    googleImplementation "com.google.maps.android:android-maps-utils:${libVersions['MapsUtils']}"
-    googleImplementation "com.anjlab.android.iab.v3:library:${libVersions['IABv3']}"
-    googleImplementation "com.dropbox.core:dropbox-core-sdk:${libVersions['DropboxCoreSdk']}"
-    googleImplementation("com.google.apis:google-api-services-drive:${libVersions['GoogleDriveApi']}") {
-        exclude group: 'org.apache.httpcomponents'
-    }
-    // END Non-FOSS component
+/** Kotlin **/
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${sharedVersions['Kotlin']}"
+    implementation "nl.komponents.kovenant:kovenant:${libVersions['Kovenant']}"
+    implementation "nl.komponents.kovenant:kovenant-android:${libVersions['Kovenant']}"
+    implementation "nl.komponents.kovenant:kovenant-combine:${libVersions['Kovenant']}"
+    implementation "nl.komponents.kovenant:kovenant-functional:${libVersions['Kovenant']}"
 
-    fdroidImplementation "org.osmdroid:osmdroid-android:${libVersions['OSMDroid']}"
-    fdroidImplementation "ch.acra:acra:${libVersions['ACRA']}"
+
+/** Android support **/
+    implementation 'androidx.annotation:annotation:1.1.0'
+    implementation 'androidx.appcompat:appcompat:1.3.0-beta01'
+    implementation 'androidx.browser:browser:1.2.0'
+    implementation 'androidx.cardview:cardview:1.0.0'
+    implementation 'androidx.core:core-ktx:1.3.2'
+    implementation 'androidx.drawerlayout:drawerlayout:1.1.1'
+    implementation 'androidx.exifinterface:exifinterface:1.3.1'
+    implementation 'androidx.legacy:legacy-support-core-ui:1.0.0'
+    implementation 'androidx.multidex:multidex:2.0.1'
+    implementation 'androidx.palette:palette-ktx:1.0.0'
+    implementation 'androidx.preference:preference-ktx:1.1.1'
+    implementation 'androidx.recyclerview:recyclerview:1.1.0'
+    implementation 'com.google.android.material:material:1.3.0'
+
+
+/** Third-party dependencies **/
+    compileOnly 'javax.annotation:jsr250-api:1.0'
+    implementation 'com.twitter.twittertext:twitter-text:3.1.0'
+    implementation 'com.davemorrissey.labs:subsampling-scale-image-view:3.10.0'
+    implementation 'com.squareup:otto:1.3.8'
+    implementation 'dnsjava:dnsjava:3.2.2'
+    implementation 'com.commonsware.cwac:layouts:0.4.5'
+    implementation 'com.rengwuxian.materialedittext:library:2.1.4'
+    implementation 'com.pnikosis:materialish-progress:1.7'
+    implementation 'com.github.uucky:ColorPicker-Android:0.9.7@aar'
+    implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.15'
+    implementation 'com.sprylab.android.texturevideoview:texturevideoview:1.2.1'
+    implementation 'com.squareup:pollexor:2.0.4'
+    implementation 'org.apache.commons:commons-lang3:3.10'
+    implementation 'org.apache.commons:commons-text:1.8'
+    implementation "org.apache.james:apache-mime4j-core:${libVersions['Mime4J']}"
+    implementation "org.apache.james:apache-mime4j-storage:${libVersions['Mime4J']}"
+    implementation "com.bluelinelabs:logansquare:${sharedVersions['LoganSquare']}"
+    kapt "com.bluelinelabs:logansquare-compiler:${sharedVersions['LoganSquare']}"
+    implementation "com.fasterxml.jackson.core:jackson-core:${sharedVersions['Jackson']}"
+    implementation "com.hannesdorfmann.parcelableplease:annotation:${sharedVersions['ParcelablePlease']}"
+    kapt "com.hannesdorfmann.parcelableplease:processor:${sharedVersions['ParcelablePlease']}"
+    implementation 'com.squareup.okhttp3:okhttp:3.12.12'
+    implementation 'com.squareup.okio:okio:2.9.0'
+    implementation 'com.lnikkila:extendedtouchview:0.1.1'
+    implementation "com.google.dagger:dagger:${libVersions['Dagger']}"
+    kapt "com.google.dagger:dagger-compiler:${libVersions['Dagger']}"
+    implementation 'org.attoparser:attoparser:2.0.5.RELEASE'
+    implementation 'com.getkeepsafe.taptargetview:taptargetview:1.13.0'
+    implementation 'net.ypresto.androidtranscoder:android-transcoder:0.3.0'
+    implementation 'org.jsoup:jsoup:1.13.1'
+    implementation "com.google.android.exoplayer:exoplayer:${libVersions['Exoplayer']}"
+//    implementation "com.google.android.exoplayer:exoplayer-ui:${libVersions['Exoplayer']}"
+    implementation "com.google.android.exoplayer:extension-okhttp:${libVersions['Exoplayer']}"
+    implementation "com.github.bumptech.glide:glide:${libVersions['Glide']}"
+    implementation "com.github.bumptech.glide:okhttp3-integration:${libVersions['Glide']}@aar"
+    kapt "com.github.bumptech.glide:compiler:${libVersions['Glide']}"
+    implementation 'jp.wasabeef:glide-transformations:4.1.0'
+    implementation 'com.theartofdev.edmodo:android-image-cropper:2.8.0'
+    implementation 'io.nayuki:qrcodegen:1.6.0'
+
+
+/** Custom dependencies **/
+    implementation 'com.github.mariotaku:AbstractTask:0.9.7'
+    implementation 'com.github.mariotaku:DragSortListView:0.6.1'
+    implementation "com.github.mariotaku.ExportablePreferences:core:${sharedVersions['ExportablePreferences']}"
+    implementation("com.github.mariotaku.CommonsLibrary:emojione-android:${sharedVersions['MariotakuCommons']}") {
+        exclude group: 'org.apache.commons', module: 'commons-text'
+    }
+    implementation "com.github.mariotaku.CommonsLibrary:io:${sharedVersions['MariotakuCommons']}"
+    implementation "com.github.mariotaku.CommonsLibrary:logansquare:${sharedVersions['MariotakuCommons']}"
+    implementation "com.github.mariotaku.CommonsLibrary:objectcursor:${sharedVersions['MariotakuCommons']}"
+    implementation "com.github.mariotaku.CommonsLibrary:parcel:${sharedVersions['MariotakuCommons']}"
+    implementation "com.github.mariotaku.CommonsLibrary:text:${sharedVersions['MariotakuCommons']}"
+    implementation "com.github.mariotaku.CommonsLibrary:text-kotlin:${sharedVersions['MariotakuCommons']}"
+    implementation 'com.github.mariotaku:KPreferences:0.9.8'
+    implementation "com.github.mariotaku.MediaViewerLibrary:base:${libVersions['MediaViewerLibrary']}"
+    implementation "com.github.mariotaku.MediaViewerLibrary:subsample-image-view:${libVersions['MediaViewerLibrary']}"
+    implementation 'com.github.mariotaku:MessageBubbleView:3.5'
+    implementation "com.github.mariotaku.ObjectCursor:core:${sharedVersions['ObjectCursor']}"
+    kapt "com.github.mariotaku.ObjectCursor:processor:${sharedVersions['ObjectCursor']}"
+    implementation 'com.github.mariotaku:PickNCrop:0.9.29'
+    implementation "com.github.mariotaku.RestFu:library:${sharedVersions['RestFu']}"
+    implementation "com.github.mariotaku.RestFu:logansquare:${sharedVersions['RestFu']}"
+    implementation "com.github.mariotaku.RestFu:oauth:${sharedVersions['RestFu']}"
+    implementation "com.github.mariotaku.RestFu:oauth2:${sharedVersions['RestFu']}"
+    implementation "com.github.mariotaku.RestFu:okhttp3:${sharedVersions['RestFu']}"
+    implementation 'com.github.mariotaku:SQLiteQB:0.9.15'
+    implementation 'com.github.mariotaku.UniqR:android:0.9.10'
+    implementation 'com.github.Tlaster:Chameleon:0.9.28'
+
+
+/** Flavor dependencies **/
+    fdroidImplementation 'org.osmdroid:osmdroid-android:5.6.5'
+    fdroidImplementation 'ch.acra:acra-mail:5.7.0'
+    fdroidImplementation 'ch.acra:acra-dialog:5.7.0'
+
+    if (enableGoogleVariant) {
+        // START Non-FOSS component
+        googleImplementation 'com.google.android.gms:play-services-ads:17.0.0'
+        googleImplementation 'com.google.android.gms:play-services-auth:17.0.0'
+        googleImplementation 'com.google.android.gms:play-services-maps:17.0.0'
+
+        googleImplementation 'com.google.maps.android:android-maps-utils:0.6.2'
+        googleImplementation 'com.anjlab.android.iab.v3:library:1.1.0'
+        googleImplementation 'com.dropbox.core:dropbox-core-sdk:3.1.3'
+        googleImplementation('com.google.apis:google-api-services-drive:v3-rev195-1.25.0') {
+            exclude group: 'org.apache.httpcomponents'
+        }
+        implementation 'com.google.guava:guava:28.2-android'
+        // END Non-FOSS component
+    }
 
     debugImplementation "com.facebook.stetho:stetho:${libVersions['Stetho']}"
     debugImplementation "com.facebook.stetho:stetho-okhttp3:${libVersions['Stetho']}"
-    debugImplementation "com.github.mariotaku:StethoBeanShellREPL:${libVersions['StethoBeanShellREPL']}"
-    debugImplementation "com.squareup.leakcanary:leakcanary-android:${libVersions['LeakCanary']}"
-    debugImplementation('com.jayway.jsonpath:json-path:2.2.0') {
+    debugImplementation 'com.github.mariotaku:StethoBeanShellREPL:0.5'
+    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.6'
+    debugImplementation('com.jayway.jsonpath:json-path:2.4.0') {
         exclude group: 'net.minidev', module: 'json-smart'
     }
     // Stetho dependency, see https://g.co/androidstudio/app-test-app-conflict
-    debugImplementation "com.google.code.findbugs:jsr305:3.0.1"
+    debugImplementation 'com.google.code.findbugs:jsr305:3.0.2'
 
-    compileOnly 'javax.annotation:jsr250-api:1.0'
 
-    testImplementation 'junit:junit:4.12'
-
-    androidTestImplementation "com.android.support:support-annotations:${libVersions['SupportLib']}"
-    androidTestImplementation "com.android.support.test:runner:${libVersions['SupportTest']}"
-    androidTestImplementation "com.android.support.test:rules:${libVersions['SupportTest']}"
+/** Testing **/
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.annotation:annotation:1.1.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
+    androidTestImplementation 'androidx.test:rules:1.3.0'
     // https://g.co/androidstudio/app-test-app-conflict
-    androidTestImplementation "com.google.code.findbugs:jsr305:3.0.1"
-
-    implementation 'com.android.support:multidex:1.0.2'
-    implementation "com.android.support:support-annotations:${libVersions['SupportLib']}"
-    implementation "com.android.support:support-compat:${libVersions['SupportLib']}"
-    implementation "com.android.support:support-core-utils:${libVersions['SupportLib']}"
-    implementation "com.android.support:support-core-ui:${libVersions['SupportLib']}"
-    implementation "com.android.support:support-v13:${libVersions['SupportLib']}"
-    implementation "com.android.support:appcompat-v7:${libVersions['SupportLib']}"
-    implementation "com.android.support:cardview-v7:${libVersions['SupportLib']}"
-    implementation "com.android.support:recyclerview-v7:${libVersions['SupportLib']}"
-    implementation "com.android.support:palette-v7:${libVersions['SupportLib']}"
-    implementation "com.android.support:preference-v14:${libVersions['SupportLib']}"
-    implementation "com.android.support:customtabs:${libVersions['SupportLib']}"
-    implementation "com.android.support:design:${libVersions['SupportLib']}"
-    implementation "com.android.support:exifinterface:${libVersions['SupportLib']}"
-    implementation "com.twitter:twitter-text:${libVersions['TwitterText']}"
-    implementation 'com.davemorrissey.labs:subsampling-scale-image-view:3.6.0'
-    implementation 'com.squareup:otto:1.3.8'
-    implementation 'dnsjava:dnsjava:2.1.8'
-    implementation 'com.commonsware.cwac:layouts:0.4.3'
-    implementation 'com.rengwuxian.materialedittext:library:2.1.4'
-    implementation 'com.pnikosis:materialish-progress:1.7'
-    implementation 'com.github.mariotaku:MessageBubbleView:1.6'
-    implementation 'com.github.mariotaku:DragSortListView:0.6.1'
-    implementation 'com.github.uucky:ColorPicker-Android:0.9.7@aar'
-    implementation "pl.droidsonroids.gif:android-gif-drawable:${libVersions['AndroidGIFDrawable']}"
-    implementation 'com.sprylab.android.texturevideoview:texturevideoview:1.2.1'
-    implementation 'com.squareup:pollexor:2.0.4'
-    implementation "org.apache.james:apache-mime4j-core:${libVersions['Mime4J']}"
-    implementation "org.apache.james:apache-mime4j-storage:${libVersions['Mime4J']}"
-    implementation "com.bluelinelabs:logansquare:${libVersions['LoganSquare']}"
-    implementation "com.hannesdorfmann.parcelableplease:annotation:${libVersions['ParcelablePlease']}"
-    implementation "com.github.mariotaku:PickNCrop:${libVersions['PickNCrop']}"
-    implementation "com.github.mariotaku.RestFu:library:${libVersions['RestFu']}"
-    implementation "com.github.mariotaku.RestFu:oauth:${libVersions['RestFu']}"
-    implementation "com.github.mariotaku.RestFu:oauth2:${libVersions['RestFu']}"
-    implementation "com.github.mariotaku.RestFu:okhttp3:${libVersions['RestFu']}"
-    implementation "com.github.mariotaku.RestFu:logansquare:${libVersions['RestFu']}"
-    implementation "com.squareup.okhttp3:okhttp:${libVersions['OkHttp']}"
-    implementation 'com.lnikkila:extendedtouchview:0.1.1'
-    implementation "com.google.dagger:dagger:${libVersions['Dagger']}"
-    implementation 'org.attoparser:attoparser:2.0.4.RELEASE'
-    implementation 'com.getkeepsafe.taptargetview:taptargetview:1.9.1'
-    implementation 'net.ypresto.androidtranscoder:android-transcoder:0.2.0'
-    implementation "com.google.android.exoplayer:exoplayer:${libVersions['Exoplayer']}"
-    implementation "com.google.android.exoplayer:extension-okhttp:${libVersions['Exoplayer']}"
-    implementation "com.github.bumptech.glide:glide:${libVersions['Glide']}"
-    implementation "com.github.bumptech.glide:okhttp3-integration:${libVersions['GlideOkHttp3']}@aar"
-    implementation "jp.wasabeef:glide-transformations:${libVersions['GlideTransformations']}"
-    implementation "com.theartofdev.edmodo:android-image-cropper:${libVersions['AndroidImageCropper']}"
-
-    implementation "com.github.mariotaku.MediaViewerLibrary:base:${libVersions['MediaViewerLibrary']}"
-    implementation "com.github.mariotaku.MediaViewerLibrary:subsample-image-view:${libVersions['MediaViewerLibrary']}"
-    implementation "com.github.mariotaku:SQLiteQB:${libVersions['SQLiteQB']}"
-    implementation "com.github.mariotaku.ObjectCursor:core:${libVersions['ObjectCursor']}"
-    implementation "com.github.mariotaku.ExportablePreferences:core:${libVersions['ExportablePreferences']}"
-    implementation "com.github.mariotaku:AbstractTask:${libVersions['AbstractTask']}"
-    implementation "com.github.mariotaku.CommonsLibrary:parcel:${libVersions['MariotakuCommons']}"
-    implementation "com.github.mariotaku.CommonsLibrary:io:${libVersions['MariotakuCommons']}"
-    implementation "com.github.mariotaku.CommonsLibrary:text:${libVersions['MariotakuCommons']}"
-    implementation "com.github.mariotaku.CommonsLibrary:text-kotlin:${libVersions['MariotakuCommons']}"
-    implementation("com.github.mariotaku.CommonsLibrary:emojione-android:${libVersions['MariotakuCommons']}") {
-        exclude group: 'org.apache.commons', module: 'commons-text'
-    }
-    implementation "com.github.mariotaku.CommonsLibrary:objectcursor:${libVersions['MariotakuCommons']}"
-    implementation "com.github.mariotaku.CommonsLibrary:logansquare:${libVersions['MariotakuCommons']}"
-    implementation "com.github.mariotaku:KPreferences:${libVersions['KPreferences']}"
-    implementation "com.github.mariotaku:Chameleon:${libVersions['Chameleon']}"
-    implementation "com.github.mariotaku.UniqR:android:${libVersions['UniqR']}"
-
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:${libVersions['Kotlin']}"
-    implementation "nl.komponents.kovenant:kovenant:${libVersions['Kovenant']}"
-    implementation "nl.komponents.kovenant:kovenant-android:${libVersions['Kovenant']}"
-    implementation "nl.komponents.kovenant:kovenant-functional:${libVersions['Kovenant']}"
-    implementation "nl.komponents.kovenant:kovenant-combine:${libVersions['Kovenant']}"
+    androidTestImplementation 'com.google.code.findbugs:jsr305:3.0.2'
 }
 
-task svgToDrawable(type: SvgDrawableTask) {
-    // specify where to pick SVG from
-    from = files(android.sourceSets.collect { "src/${it.name}/svg/drawable" })
-    // specify the android res folder
-    to = file('src/main/res-svg2png')
-    // override files only if necessary
-    overwriteMode = 'ifModified'
-    // let generate PNG for the following densities only
-    targetedDensities = ['hdpi', 'mdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']
-    // relative path of the file specifying nine patch specs
-    ninePatchConfig = file('src/main/svg/drawable/9patch.json')
-    // output format of the generated resources
-    outputFormat = 'PNG'
-
-    outputType = 'drawable'
-}
-
-task svgToMipmap(type: SvgDrawableTask) {
-    // specify where to pick SVG from
-    from = files(android.sourceSets.collect { "src/${it.name}/svg/mipmap" })
-    // specify the android res folder
-    to = file('src/main/res-svg2png')
-    // override files only if necessary
-    overwriteMode = 'ifModified'
-    // let generate PNG for the following densities only
-    targetedDensities = ['hdpi', 'mdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']
-    // output format of the generated resources
-    outputFormat = 'PNG'
-
-    outputType = 'mipmap'
-}
-
+if (enableGoogleVariant) {
 // START Non-FOSS component
-apply plugin: 'com.google.gms.google-services'
+    apply plugin: 'com.google.gms.google-services'
 // END Non-FOSS component
+}

@@ -24,11 +24,11 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener
-import android.support.v7.internal.widget.PreferenceImageView
-import android.support.v7.preference.Preference
-import android.support.v7.preference.PreferenceManager
-import android.support.v7.preference.PreferenceViewHolder
-import android.support.v7.widget.SwitchCompat
+import androidx.preference.internal.PreferenceImageView
+import androidx.preference.Preference
+import androidx.preference.PreferenceManager
+import androidx.preference.PreferenceViewHolder
+import androidx.appcompat.widget.SwitchCompat
 import android.util.AttributeSet
 import android.view.View
 import android.widget.ImageView
@@ -65,7 +65,7 @@ abstract class AccountsListPreference(context: Context, attrs: AttributeSet? = n
         addPreference(preference)
     }
 
-    override final fun onAttachedToHierarchy(preferenceManager: PreferenceManager) {
+    final override fun onAttachedToHierarchy(preferenceManager: PreferenceManager) {
         super.onAttachedToHierarchy(preferenceManager)
         if (preferenceCount > 0) return
         setAccountsData(AccountUtils.getAllAccountDetails(AccountManager.get(context), true))
@@ -117,11 +117,11 @@ abstract class AccountsListPreference(context: Context, attrs: AttributeSet? = n
             }
             val titleView = holder.findViewById(android.R.id.title)
             if (titleView is TextView) {
-                titleView.setSingleLine(true)
+                titleView.isSingleLine = true
             }
             val summaryView = holder.findViewById(android.R.id.summary)
             if (summaryView is TextView) {
-                summaryView.setSingleLine(true)
+                summaryView.isSingleLine = true
             }
             val switchView = holder.findViewById(android.R.id.toggle) as SwitchCompat
             if (switchKey != null) {

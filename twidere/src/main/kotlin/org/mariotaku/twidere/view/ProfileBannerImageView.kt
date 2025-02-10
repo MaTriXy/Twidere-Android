@@ -23,21 +23,22 @@ import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.content.Context
 import android.os.Build
+import androidx.core.view.createWindowInsetsCompat
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.widget.ImageView
-import org.mariotaku.ktextension.systemWindowInsets
 import org.mariotaku.twidere.R
 import org.mariotaku.twidere.view.iface.IExtendedView
+import kotlin.math.roundToInt
 
 class ProfileBannerImageView(context: Context, attrs: AttributeSet) :
         ForegroundImageView(context, attrs), IExtendedView {
 
     override var onSizeChangedListener: IExtendedView.OnSizeChangedListener? = null
     override var touchInterceptor: IExtendedView.TouchInterceptor? = null
-    override var onApplySystemWindowInsetsListener: IExtendedView.OnApplySystemWindowInsetsListener? = null
+    override var onApplyWindowInsetsCompatListener: IExtendedView.OnApplyWindowInsetsCompatListener? = null
 
     var bannerAspectRatio: Float = 0.toFloat()
 
@@ -45,7 +46,7 @@ class ProfileBannerImageView(context: Context, attrs: AttributeSet) :
         val a = context.obtainStyledAttributes(attrs, R.styleable.ProfileBannerImageView)
         bannerAspectRatio = a.getFraction(R.styleable.ProfileBannerImageView_bannerAspectRatio, 1, 1, 2f)
         a.recycle()
-        scaleType = ImageView.ScaleType.CENTER_CROP
+        scaleType = ScaleType.CENTER_CROP
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -66,10 +67,10 @@ class ProfileBannerImageView(context: Context, attrs: AttributeSet) :
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val width = View.MeasureSpec.getSize(widthMeasureSpec)
-        val height = Math.round(width / bannerAspectRatio)
+        val width = MeasureSpec.getSize(widthMeasureSpec)
+        val height = (width / bannerAspectRatio).roundToInt()
         setMeasuredDimension(width, height)
-        super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY))
+        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY))
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -81,7 +82,7 @@ class ProfileBannerImageView(context: Context, attrs: AttributeSet) :
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
-        onApplySystemWindowInsetsListener?.onApplySystemWindowInsets(insets.systemWindowInsets)
+        onApplyWindowInsetsCompatListener?.onApplyWindowInsets(createWindowInsetsCompat(insets))
         return super.onApplyWindowInsets(insets)
     }
 }

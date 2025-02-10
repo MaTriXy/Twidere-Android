@@ -3,8 +3,9 @@ package org.mariotaku.twidere.extension
 import android.app.Dialog
 import android.content.DialogInterface.*
 import android.content.res.ColorStateList
-import android.support.annotation.StringRes
-import android.support.v7.app.AlertDialog
+import android.widget.Button
+import androidx.annotation.StringRes
+import androidx.appcompat.app.AlertDialog
 import org.mariotaku.chameleon.Chameleon
 import org.mariotaku.chameleon.ChameleonUtils
 import org.mariotaku.twidere.util.ThemeUtils
@@ -31,14 +32,20 @@ fun <T : Dialog> T.applyOnShow(action: T.() -> Unit) {
     }
 }
 
-fun AlertDialog.Builder.positive(@StringRes textId: Int, action: (dialog: AlertDialog) -> Unit) {
+inline fun AlertDialog.Builder.positive(@StringRes textId: Int, crossinline action: (dialog: AlertDialog) -> Unit) {
     setPositiveButton(textId) { dialog, _ ->
         action(dialog as AlertDialog)
     }
 }
 
-fun AlertDialog.Builder.negative(@StringRes textId: Int, action: (dialog: AlertDialog) -> Unit) {
+inline fun AlertDialog.Builder.negative(@StringRes textId: Int, crossinline action: (dialog: AlertDialog) -> Unit) {
     setNegativeButton(textId) { dialog, _ ->
+        action(dialog as AlertDialog)
+    }
+}
+
+inline fun AlertDialog.Builder.neutral(@StringRes textId: Int, crossinline action: (dialog: AlertDialog) -> Unit) {
+    setNeutralButton(textId) { dialog, _ ->
         action(dialog as AlertDialog)
     }
 }
@@ -49,3 +56,6 @@ fun <T : Dialog> T.onShow(action: (dialog: T) -> Unit) {
         action(dialog as T)
     }
 }
+
+inline val AlertDialog.positiveButton: Button get() = getButton(BUTTON_POSITIVE)
+inline val AlertDialog.negativeButton: Button get() = getButton(BUTTON_NEGATIVE)

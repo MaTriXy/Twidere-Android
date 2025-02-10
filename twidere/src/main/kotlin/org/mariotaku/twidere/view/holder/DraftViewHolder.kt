@@ -20,7 +20,7 @@
 package org.mariotaku.twidere.view.holder
 
 import android.content.Context
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import android.view.View
 import com.bumptech.glide.RequestManager
 import kotlinx.android.synthetic.main.list_item_draft.view.*
@@ -76,12 +76,16 @@ class DraftViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         } else {
             contentView.drawEnd()
         }
-        if (summaryText != null) {
-            textView.spannable = summaryText
-        } else if (draft.text.isNullOrEmpty()) {
-            textView.setText(R.string.empty_content)
-        } else {
-            textView.spannable = draft.text
+        when {
+            summaryText != null -> {
+                textView.spannable = summaryText
+            }
+            draft.text.isNullOrEmpty() -> {
+                textView.setText(R.string.empty_content)
+            }
+            else -> {
+                textView.spannable = draft.text
+            }
         }
 
         if (draft.timestamp > 0) {

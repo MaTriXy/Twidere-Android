@@ -44,8 +44,10 @@ abstract class AbsUserRelatedShortcutCreatorActivity : AbsShortcutCreatorActivit
                 }
                 val user = data.getParcelableExtra<ParcelableUser>(EXTRA_USER)
                 val extras = data.getBundleExtra(EXTRA_EXTRAS)
-                val accountKey = extras.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY)
-                onUserSelected(accountKey, user)
+                val accountKey = extras?.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY)
+                if (user != null) {
+                    onUserSelected(accountKey, user)
+                }
             }
             else -> {
                 super.onActivityResult(requestCode, resultCode, data)
@@ -53,7 +55,7 @@ abstract class AbsUserRelatedShortcutCreatorActivity : AbsShortcutCreatorActivit
         }
     }
 
-    override final fun onAccountSelected(accountKey: UserKey, extras: Bundle?) {
+    final override fun onAccountSelected(accountKey: UserKey, extras: Bundle?) {
         val selectUserIntent = Intent(this, UserSelectorActivity::class.java)
         selectUserIntent.putExtra(EXTRA_ACCOUNT_KEY, accountKey)
         selectUserIntent.putExtra(EXTRA_EXTRAS, Bundle {

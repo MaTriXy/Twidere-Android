@@ -5,10 +5,8 @@ import android.net.Uri
 import android.text.TextUtils
 import org.mariotaku.microblog.library.MicroBlog
 import org.mariotaku.microblog.library.MicroBlogException
-import org.mariotaku.microblog.library.fanfou.FanfouStream
 import org.mariotaku.microblog.library.mastodon.Mastodon
 import org.mariotaku.microblog.library.mastodon.MastodonOAuth2
-import org.mariotaku.microblog.library.mastodon.MastodonStreaming
 import org.mariotaku.microblog.library.twitter.*
 import org.mariotaku.microblog.library.twitter.auth.BasicAuthorization
 import org.mariotaku.microblog.library.twitter.auth.EmptyAuthorization
@@ -65,12 +63,11 @@ fun Credentials.getAuthorization(cls: Class<*>?): Authorization {
 }
 
 fun Credentials.getEndpoint(cls: Class<*>): Endpoint {
-    val apiUrlFormat: String
     val noVersionSuffix = this.no_version_suffix
-    if (!TextUtils.isEmpty(this.api_url_format)) {
-        apiUrlFormat = this.api_url_format
+    val apiUrlFormat: String = if (!TextUtils.isEmpty(this.api_url_format)) {
+        this.api_url_format
     } else {
-        apiUrlFormat = DEFAULT_TWITTER_API_URL_FORMAT
+        DEFAULT_TWITTER_API_URL_FORMAT
     }
     val domain: String?
     val versionSuffix: String?
@@ -95,16 +92,8 @@ fun Credentials.getEndpoint(cls: Class<*>): Endpoint {
             domain = "api"
             versionSuffix = null
         }
-        TwitterUserStream::class.java.isAssignableFrom(cls) -> {
-            domain = "userstream"
-            versionSuffix = if (noVersionSuffix) null else "/1.1/"
-        }
         TwitterCaps::class.java.isAssignableFrom(cls) -> {
             domain = "caps"
-            versionSuffix = null
-        }
-        FanfouStream::class.java.isAssignableFrom(cls) -> {
-            domain = "stream"
             versionSuffix = null
         }
         TwitterWeb::class.java.isAssignableFrom(cls) -> {
@@ -119,19 +108,14 @@ fun Credentials.getEndpoint(cls: Class<*>): Endpoint {
             domain = null
             versionSuffix = null
         }
-        MastodonStreaming::class.java.isAssignableFrom(cls) -> {
-            domain = null
-            versionSuffix = null
-        }
         else -> throw UnsupportedOperationException("Unsupported class $cls")
     }
     val endpointUrl = MicroBlogAPIFactory.getApiUrl(apiUrlFormat, domain, versionSuffix)
     if (this is OAuthCredentials) {
-        val signEndpointUrl: String
-        if (same_oauth_signing_url) {
-            signEndpointUrl = endpointUrl
+        val signEndpointUrl: String = if (same_oauth_signing_url) {
+            endpointUrl
         } else {
-            signEndpointUrl = MicroBlogAPIFactory.getApiUrl(DEFAULT_TWITTER_API_URL_FORMAT, domain, versionSuffix)
+            MicroBlogAPIFactory.getApiUrl(DEFAULT_TWITTER_API_URL_FORMAT, domain, versionSuffix)
         }
         return OAuthEndpoint(endpointUrl, signEndpointUrl)
     }
@@ -165,14 +149,6 @@ fun <T> newMicroBlogInstance(context: Context, endpoint: Endpoint, auth: Authori
                     holder.connectionPool, holder.cache)
             factory.setHttpClient(uploadHttpClient)
         }
-        TwitterUserStream::class.java, FanfouStream::class.java, MastodonStreaming::class.java -> {
-            val conf = HttpClientFactory.HttpClientConfiguration(holder.preferences)
-            // Use longer read timeout for streaming
-            conf.readTimeoutSecs = 300
-            val streamHttpClient = HttpClientFactory.createRestHttpClient(conf, holder.dns,
-                    holder.connectionPool, holder.cache)
-            factory.setHttpClient(streamHttpClient)
-        }
         else -> {
             factory.setHttpClient(holder.restHttpClient)
         }
@@ -185,9 +161,7 @@ fun <T> newMicroBlogInstance(context: Context, endpoint: Endpoint, auth: Authori
         }
         AccountType.FANFOU -> {
             factory.setConstantPool(sFanfouConstantPool)
-            if (cls != FanfouStream::class.java) {
-                extraRequestParams = mapOf("format" to "html")
-            }
+            extraRequestParams = mapOf("format" to "html")
         }
     }
     factory.setRestConverterFactory(TwitterConverterFactory)
@@ -204,11 +178,11 @@ internal fun Credentials.authorizationHeader(
 ): String {
     val auth = getAuthorization(cls)
     val endpoint: Endpoint
-    if (auth is OAuthAuthorization) {
-        endpoint = OAuthEndpoint(TwidereMediaDownloader.getEndpoint(modifiedUri),
-                TwidereMediaDownloader.getEndpoint(uri))
+    endpoint = if (auth is OAuthAuthorization) {
+        OAuthEndpoint(TwidereMediaDownloader.getEndpoint(modifiedUri),
+            TwidereMediaDownloader.getEndpoint(uri))
     } else {
-        endpoint = Endpoint(TwidereMediaDownloader.getEndpoint(modifiedUri))
+        Endpoint(TwidereMediaDownloader.getEndpoint(modifiedUri))
     }
     val queries = MultiValueMap<String>()
     for (name in uri.queryParameterNames) {
@@ -216,6 +190,6 @@ internal fun Credentials.authorizationHeader(
             queries.add(name, value)
         }
     }
-    val info = RestRequest("GET", false, uri.path, null, queries, null, null, null, null)
+    val info = RestRequest("GET", false, uri.path!!, null, queries, null, null, null, null)
     return auth.getHeader(endpoint, info)
 }

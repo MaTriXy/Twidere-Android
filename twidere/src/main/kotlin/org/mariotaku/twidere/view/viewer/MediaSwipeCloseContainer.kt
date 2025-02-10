@@ -2,16 +2,18 @@ package org.mariotaku.twidere.view.viewer
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.support.annotation.FloatRange
-import android.support.v4.graphics.drawable.DrawableCompat
-import android.support.v4.view.ViewCompat
-import android.support.v4.widget.ViewDragHelper
+import androidx.annotation.FloatRange
+import androidx.core.graphics.drawable.DrawableCompat
+import androidx.core.view.ViewCompat
+import androidx.customview.widget.ViewDragHelper
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import org.mariotaku.ktextension.coerceInOr
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Created by mariotaku on 2017/1/29.
@@ -19,7 +21,7 @@ import org.mariotaku.ktextension.coerceInOr
 class MediaSwipeCloseContainer(context: Context, attrs: AttributeSet? = null) : ViewGroup(context, attrs) {
 
     private val dragHelper: ViewDragHelper = ViewDragHelper.create(this, 0.5f, object : ViewDragHelper.Callback() {
-        override fun onViewPositionChanged(changedView: View?, left: Int, top: Int, dx: Int, dy: Int) {
+        override fun onViewPositionChanged(changedView: View, left: Int, top: Int, dx: Int, dy: Int) {
             val container = this@MediaSwipeCloseContainer
             container.childTop = top
             container.listener?.onSwipeOffsetChanged(top)
@@ -40,7 +42,7 @@ class MediaSwipeCloseContainer(context: Context, attrs: AttributeSet? = null) : 
             return top.coerceInOr(-container.height..container.height, 0)
         }
 
-        override fun getViewVerticalDragRange(child: View?): Int {
+        override fun getViewVerticalDragRange(child: View): Int {
             val container = this@MediaSwipeCloseContainer
             return container.height
         }
@@ -48,7 +50,7 @@ class MediaSwipeCloseContainer(context: Context, attrs: AttributeSet? = null) : 
         override fun onViewReleased(releasedChild: View, xvel: Float, yvel: Float) {
             val container = this@MediaSwipeCloseContainer
             val minVel = ViewConfiguration.get(context).scaledMinimumFlingVelocity
-            if (Math.abs(yvel) < Math.abs(xvel)) {
+            if (abs(yvel) < abs(xvel)) {
                 container.dragHelper.smoothSlideViewTo(releasedChild, 0, 0)
             } else when {
                 yvel > minVel && childTop > 0 -> {
@@ -125,6 +127,6 @@ class MediaSwipeCloseContainer(context: Context, attrs: AttributeSet? = null) : 
     var backgroundAlpha: Float
         get() = (background?.let(DrawableCompat::getAlpha) ?: 0) / 255f
         set(@FloatRange(from = 0.0, to = 1.0) value) {
-            background?.alpha = Math.round(value * 0xFF)
+            background?.alpha = (value * 0xFF).roundToInt()
         }
 }

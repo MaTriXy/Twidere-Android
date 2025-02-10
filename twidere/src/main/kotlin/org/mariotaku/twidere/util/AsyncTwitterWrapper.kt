@@ -60,7 +60,7 @@ import org.mariotaku.twidere.util.collection.CompactHashSet
 
 class AsyncTwitterWrapper(
         val context: Context,
-        private val bus: Bus,
+        bus: Bus,
         private val preferences: SharedPreferences,
         private val notificationManager: NotificationManagerWrapper
 ) {
@@ -360,10 +360,6 @@ class AsyncTwitterWrapper(
             }
 
             override fun onException(callback: Any?, exception: MicroBlogException) {
-                if (exception !is MicroBlogException) {
-                    Analyzer.logException(exception)
-                    return
-                }
                 DebugLog.w(TwidereConstants.LOGTAG, "Unable to update friendship", exception)
             }
 

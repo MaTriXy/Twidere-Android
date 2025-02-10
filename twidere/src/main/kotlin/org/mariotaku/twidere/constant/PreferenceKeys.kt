@@ -2,9 +2,9 @@ package org.mariotaku.twidere.constant
 
 import android.content.SharedPreferences
 import android.os.Build
-import android.support.v4.os.LocaleHelperAccessor
-import android.support.v4.util.ArraySet
 import android.text.TextUtils
+import androidx.collection.ArraySet
+import androidx.core.os.LocaleHelperAccessor
 import org.mariotaku.kpreferences.*
 import org.mariotaku.ktextension.bcp47Tag
 import org.mariotaku.ktextension.toLongOr
@@ -74,9 +74,6 @@ val floatingDetailedContentsKey = KBooleanKey(KEY_FLOATING_DETAILED_CONTENTS, tr
 val localTrendsWoeIdKey = KIntKey(KEY_LOCAL_TRENDS_WOEID, 1)
 val phishingLinksWaringKey = KBooleanKey(KEY_PHISHING_LINK_WARNING, true)
 val multiColumnWidthKey = KStringKey(KEY_MULTI_COLUMN_TAB_WIDTH, "normal")
-val streamingEnabledKey = KBooleanKey(KEY_STREAMING_ENABLED, false)
-val streamingNonMeteredNetworkKey = KBooleanKey(KEY_STREAMING_NON_METERED_NETWORK, true)
-val streamingPowerSavingKey = KBooleanKey(KEY_STREAMING_POWER_SAVING, true)
 val quickSendKey = KBooleanKey(KEY_QUICK_SEND, false)
 val refreshAfterTweetKey = KBooleanKey(KEY_REFRESH_AFTER_TWEET, false)
 val refreshOnStartKey = KBooleanKey(KEY_REFRESH_ON_START, false)
@@ -88,6 +85,11 @@ val navbarStyleKey = KStringKey(KEY_NAVBAR_STYLE, NavbarStyle.DEFAULT)
 val lastLaunchTimeKey = KLongKey("last_launch_time", -1)
 val promotionsEnabledKey = KBooleanKey("promotions_enabled", false)
 val translationDestinationKey = KNullableStringKey(KEY_TRANSLATION_DESTINATION, null)
+val tabPositionKey = KStringKey(KEY_TAB_POSITION, SharedPreferenceConstants.DEFAULT_TAB_POSITION)
+val autoHideTabs = KBooleanKey(SharedPreferenceConstants.KEY_AUTO_HIDE_TABS, true)
+val hideCardNumbersKey = KBooleanKey(KEY_HIDE_CARD_NUMBERS, false)
+val showLinkPreviewKey = KBooleanKey(KEY_SHOW_LINK_PREVIEW, false)
+
 
 object cacheSizeLimitKey : KSimpleKey<Int>(KEY_CACHE_SIZE_LIMIT, 300) {
     override fun read(preferences: SharedPreferences) = preferences.getInt(key, def).coerceIn(100,
@@ -143,10 +145,10 @@ object profileImageStyleKey : KSimpleKey<Int>(KEY_PROFILE_IMAGE_STYLE, ImageShap
 
 object mediaPreviewStyleKey : KSimpleKey<Int>(KEY_MEDIA_PREVIEW_STYLE, PreviewStyle.CROP) {
     override fun read(preferences: SharedPreferences): Int {
-        when (preferences.getString(key, null)) {
-            VALUE_MEDIA_PREVIEW_STYLE_SCALE -> return PreviewStyle.SCALE
-            VALUE_MEDIA_PREVIEW_STYLE_REAL_SIZE -> return PreviewStyle.ACTUAL_SIZE
-            else -> return PreviewStyle.CROP
+        return when (preferences.getString(key, null)) {
+            VALUE_MEDIA_PREVIEW_STYLE_SCALE -> PreviewStyle.SCALE
+            VALUE_MEDIA_PREVIEW_STYLE_REAL_SIZE -> PreviewStyle.ACTUAL_SIZE
+            else -> PreviewStyle.CROP
         }
     }
 

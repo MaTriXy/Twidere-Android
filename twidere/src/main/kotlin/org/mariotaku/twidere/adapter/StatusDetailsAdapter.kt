@@ -19,7 +19,6 @@
 
 package org.mariotaku.twidere.adapter
 
-import android.support.v7.widget.RecyclerView
 import android.text.TextUtils
 import android.text.method.LinkMovementMethod
 import android.util.SparseBooleanArray
@@ -28,6 +27,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Space
 import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
 import org.mariotaku.kpreferences.get
 import org.mariotaku.ktextension.contains
 import org.mariotaku.microblog.library.twitter.model.TranslationResult
@@ -51,7 +51,7 @@ import org.mariotaku.twidere.view.holder.status.DetailStatusViewHolder
 
 class StatusDetailsAdapter(
         val fragment: StatusFragment
-) : LoadMoreSupportAdapter<RecyclerView.ViewHolder>(fragment.context, fragment.requestManager),
+) : LoadMoreSupportAdapter<RecyclerView.ViewHolder>(fragment.requireContext(), fragment.requestManager),
         IStatusesAdapter<List<ParcelableStatus>>, IItemCountsAdapter {
 
     override val twidereLinkify: TwidereLinkify
@@ -71,6 +71,8 @@ class StatusDetailsAdapter(
     private val inflater: LayoutInflater
     private val cardBackgroundColor: Int
     private val showCardActions = !preferences[hideCardActionsKey]
+    private val showCardNumbers = !preferences[hideCardNumbersKey]
+    private val showLinkPreview = preferences[showLinkPreviewKey]
     private var recyclerView: RecyclerView? = null
     private var detailMediaExpanded: Boolean = false
 
@@ -78,10 +80,10 @@ class StatusDetailsAdapter(
         internal set
     var translationResult: TranslationResult? = null
         internal set(translation) {
-            if (translation == null || status?.originalId != translation.id) {
-                field = null
+            field = if (translation == null || status?.originalId != translation.id) {
+                null
             } else {
-                field = translation
+                translation
             }
             notifyDataSetChanged()
         }
@@ -114,7 +116,7 @@ class StatusDetailsAdapter(
         itemCounts[ITEM_IDX_CONVERSATION_LOAD_MORE] = 1
         itemCounts[ITEM_IDX_REPLY_LOAD_MORE] = 1
         inflater = LayoutInflater.from(context)
-        cardBackgroundColor = ThemeUtils.getCardBackgroundColor(context,
+        cardBackgroundColor = ThemeUtils.getCardBackgroundColor(context!!,
                 preferences[themeBackgroundOptionKey], preferences[themeBackgroundAlphaKey])
         val listener = StatusAdapterLinkClickHandler<List<ParcelableStatus>>(context, preferences)
         listener.setAdapter(this)
@@ -124,16 +126,28 @@ class StatusDetailsAdapter(
     override fun getStatus(position: Int, raw: Boolean): ParcelableStatus {
         when (getItemCountIndex(position, raw)) {
             ITEM_IDX_CONVERSATION -> {
-                var idx = position - getIndexStart(ITEM_IDX_CONVERSATION)
-                if (data!![idx].is_filtered) idx++
-                return data!![idx]
+                data?.let { data ->
+                    var idx = position - getIndexStart(ITEM_IDX_CONVERSATION)
+                    if (idx in data.indices) {
+                        if (data[idx].is_filtered) {
+                            idx++
+                        }
+                        return data[idx]
+                    }
+                }
             }
             ITEM_IDX_REPLY -> {
-                var idx = position - getIndexStart(ITEM_IDX_CONVERSATION) -
-                        getTypeCount(ITEM_IDX_CONVERSATION) - getTypeCount(ITEM_IDX_STATUS) +
-                        replyStart
-                if (data!![idx].is_filtered) idx++
-                return data!![idx]
+                data?.let { data ->
+                    var idx = position - getIndexStart(ITEM_IDX_CONVERSATION) -
+                            getTypeCount(ITEM_IDX_CONVERSATION) - getTypeCount(ITEM_IDX_STATUS) +
+                            replyStart
+                    if (idx in data.indices) {
+                        if (data[idx].is_filtered) {
+                            idx++
+                        }
+                        return data[idx]
+                    }
+                }
             }
             ITEM_IDX_STATUS -> {
                 return status!!
@@ -171,6 +185,15 @@ class StatusDetailsAdapter(
 
     override fun getStatusCount(raw: Boolean): Int {
         return getTypeCount(ITEM_IDX_CONVERSATION) + getTypeCount(ITEM_IDX_STATUS) + getTypeCount(ITEM_IDX_REPLY)
+    }
+
+    override fun isCardNumbersShown(position: Int): Boolean {
+        if (position == RecyclerView.NO_POSITION) return showCardNumbers
+        return showCardNumbers || showingActionCardPosition == position
+    }
+
+    override fun isLinkPreviewShown(position: Int): Boolean {
+        return showLinkPreview
     }
 
     override fun isCardActionsShown(position: Int): Boolean {
@@ -268,7 +291,7 @@ class StatusDetailsAdapter(
         get() = statusClickListener
 
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder? {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         when (viewType) {
             VIEW_TYPE_DETAIL_STATUS -> {
                 val view = inflater.inflate(R.layout.header_status, parent, false)
@@ -292,7 +315,7 @@ class StatusDetailsAdapter(
                 return StatusErrorItemViewHolder(view)
             }
         }
-        return null
+        return EmptyViewHolder(View(context))
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: List<Any>) {
@@ -300,7 +323,7 @@ class StatusDetailsAdapter(
         when (holder.itemViewType) {
             VIEW_TYPE_DETAIL_STATUS -> {
                 holder as DetailStatusViewHolder
-                payloads.forEach { it ->
+                payloads.forEach {
                     when (it) {
                         is StatusFragment.StatusActivity -> {
                             holder.updateStatusActivity(it)
@@ -391,7 +414,7 @@ class StatusDetailsAdapter(
             if (position in typeStart until typeEnd) return type
             typeStart = typeEnd
         }
-        throw IllegalStateException("Unknown position " + position)
+        throw IllegalStateException("Unknown position $position")
     }
 
     fun getItemTypeStart(position: Int): Int {
@@ -423,12 +446,12 @@ class StatusDetailsAdapter(
         return itemCounts.itemCount
     }
 
-    override fun onAttachedToRecyclerView(recyclerView: RecyclerView?) {
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
         this.recyclerView = recyclerView
     }
 
-    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView?) {
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
         super.onDetachedFromRecyclerView(recyclerView)
         this.recyclerView = null
     }
@@ -491,10 +514,10 @@ class StatusDetailsAdapter(
     var isConversationsLoading: Boolean
         get() = ILoadMoreSupportAdapter.START in loadMoreIndicatorPosition
         set(loading) {
-            if (loading) {
-                loadMoreIndicatorPosition = loadMoreIndicatorPosition or ILoadMoreSupportAdapter.START
+            loadMoreIndicatorPosition = if (loading) {
+                loadMoreIndicatorPosition or ILoadMoreSupportAdapter.START
             } else {
-                loadMoreIndicatorPosition = loadMoreIndicatorPosition and ILoadMoreSupportAdapter.START.inv()
+                loadMoreIndicatorPosition and ILoadMoreSupportAdapter.START.inv()
             }
             updateItemDecoration()
         }
@@ -502,10 +525,10 @@ class StatusDetailsAdapter(
     var isRepliesLoading: Boolean
         get() = ILoadMoreSupportAdapter.END in loadMoreIndicatorPosition
         set(loading) {
-            if (loading) {
-                loadMoreIndicatorPosition = loadMoreIndicatorPosition or ILoadMoreSupportAdapter.END
+            loadMoreIndicatorPosition = if (loading) {
+                loadMoreIndicatorPosition or ILoadMoreSupportAdapter.END
             } else {
-                loadMoreIndicatorPosition = loadMoreIndicatorPosition and ILoadMoreSupportAdapter.END.inv()
+                loadMoreIndicatorPosition and ILoadMoreSupportAdapter.END.inv()
             }
             updateItemDecoration()
         }

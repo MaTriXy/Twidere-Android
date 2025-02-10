@@ -22,7 +22,7 @@ package org.mariotaku.twidere.fragment
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.support.v4.app.DialogFragment
+import androidx.fragment.app.DialogFragment
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestManager
 import com.squareup.otto.Bus
@@ -30,7 +30,6 @@ import okhttp3.Dns
 import org.mariotaku.kpreferences.KPreferences
 import org.mariotaku.restfu.http.RestHttpClient
 import org.mariotaku.twidere.util.AsyncTwitterWrapper
-import org.mariotaku.twidere.util.DebugModeUtils
 import org.mariotaku.twidere.util.KeyboardShortcutsHandler
 import org.mariotaku.twidere.util.UserColorNameManager
 import org.mariotaku.twidere.util.dagger.GeneralComponent
@@ -63,7 +62,7 @@ open class BaseDialogFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestManager = Glide.with(this)
+        requestManager = Glide.with(requireContext())// TODO: Upgrade Glide usage
     }
 
     override fun onStart() {
@@ -77,15 +76,15 @@ open class BaseDialogFragment : DialogFragment() {
     }
 
     override fun onDestroy() {
-        requestManager.onDestroy()
+//        requestManager.onDestroy()
         extraFeaturesService.release()
         super.onDestroy()
-        DebugModeUtils.watchReferenceLeak(this)
+//        DebugModeUtils.watchReferenceLeak(this)
     }
 
-    override fun onAttach(context: Context?) {
+    override fun onAttach(context: Context) {
         super.onAttach(context)
-        GeneralComponent.get(context!!).inject(this)
+        GeneralComponent.get(context).inject(this)
     }
 
 }

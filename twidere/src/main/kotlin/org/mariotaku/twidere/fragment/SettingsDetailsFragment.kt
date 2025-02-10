@@ -22,9 +22,10 @@ package org.mariotaku.twidere.fragment
 import android.content.SharedPreferences
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import android.os.Bundle
-import android.support.v4.view.ViewCompat
-import android.support.v7.preference.PreferenceScreen
 import android.view.View
+import androidx.core.view.ViewCompat
+import androidx.preference.Preference
+import androidx.preference.PreferenceScreen
 import org.mariotaku.twidere.Constants.*
 import org.mariotaku.twidere.activity.SettingsActivity
 import org.mariotaku.twidere.constant.IntentConstants.EXTRA_SHOULD_TERMINATE
@@ -36,23 +37,27 @@ class SettingsDetailsFragment : BasePreferenceFragment(), OnSharedPreferenceChan
         preferenceManager.sharedPreferencesName = SHARED_PREFERENCES_NAME
         val defaultScreen = preferenceScreen
         val preferenceScreen: PreferenceScreen
-        if (defaultScreen != null) {
+        preferenceScreen = if (defaultScreen != null) {
             defaultScreen.removeAll()
-            preferenceScreen = defaultScreen
+            defaultScreen
         } else {
-            preferenceScreen = preferenceManager.createPreferenceScreen(activity)
+            preferenceManager.createPreferenceScreen(activity)
         }
         setPreferenceScreen(preferenceScreen)
 
         val args = arguments
-        val rawResId = args.get(EXTRA_RESID)
+        val rawResId = args?.get(EXTRA_RESID)
         val resId: Int
-        if (rawResId is Int) {
-            resId = rawResId
-        } else if (rawResId is String) {
-            resId = Utils.getResId(activity, rawResId)
-        } else {
-            resId = 0
+        resId = when (rawResId) {
+            is Int -> {
+                rawResId
+            }
+            is String -> {
+                Utils.getResId(activity, rawResId)
+            }
+            else -> {
+                0
+            }
         }
         if (resId != 0) {
             addPreferencesFromResource(resId)
@@ -76,18 +81,23 @@ class SettingsDetailsFragment : BasePreferenceFragment(), OnSharedPreferenceChan
     }
 
     override fun onSharedPreferenceChanged(preferences: SharedPreferences, key: String) {
-        val preference = findPreference(key) ?: return
+        val preference = findPreference<Preference>(key) ?: return
+        val currentActivity = activity ?: return
         val extras = preference.extras
         if (extras != null) {
-            if (extras.containsKey(EXTRA_SHOULD_RESTART)) {
-                SettingsActivity.setShouldRestart(activity)
-            } else if (extras.containsKey(EXTRA_SHOULD_RECREATE)) {
-                SettingsActivity.setShouldRecreate(activity)
-            } else if (extras.containsKey(EXTRA_SHOULD_TERMINATE)) {
-                SettingsActivity.setShouldTerminate(activity)
+            when {
+                extras.containsKey(EXTRA_SHOULD_RESTART) -> {
+                    SettingsActivity.setShouldRestart(currentActivity)
+                }
+                extras.containsKey(EXTRA_SHOULD_RECREATE) -> {
+                    SettingsActivity.setShouldRecreate(currentActivity)
+                }
+                extras.containsKey(EXTRA_SHOULD_TERMINATE) -> {
+                    SettingsActivity.setShouldTerminate(currentActivity)
+                }
             }
             if (extras.containsKey(EXTRA_RECREATE_ACTIVITY)) {
-                activity.recreate()
+                currentActivity.recreate()
             }
         }
     }

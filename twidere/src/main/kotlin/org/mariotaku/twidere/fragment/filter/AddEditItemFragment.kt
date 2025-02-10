@@ -22,10 +22,9 @@ package org.mariotaku.twidere.fragment.filter
 import android.accounts.AccountManager
 import android.app.Dialog
 import android.content.Context
-import android.content.DialogInterface
 import android.net.Uri
 import android.os.Bundle
-import android.support.v7.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
@@ -50,19 +49,19 @@ import org.mariotaku.twidere.model.util.AccountUtils
 import org.mariotaku.twidere.provider.TwidereDataStore.Filters
 import org.mariotaku.twidere.util.premium.ExtraFeaturesService
 
-class AddEditItemFragment : BaseDialogFragment(), DialogInterface.OnClickListener {
+class AddEditItemFragment : BaseDialogFragment() {
 
     private val contentUri: Uri
-        get() = arguments.getParcelable(EXTRA_URI)
+        get() = arguments?.getParcelable(EXTRA_URI)!!
 
     private val rowId: Long
-        get() = arguments.getLong(EXTRA_ID, -1)
+        get() = arguments?.getLong(EXTRA_ID, -1) ?: -1
 
     private val defaultValue: String?
-        get() = arguments.getString(EXTRA_VALUE)
+        get() = arguments?.getString(EXTRA_VALUE)
 
     private val defaultScopes: FilterScopesHolder
-        get() = FilterScopesHolder(filterMasks, arguments.getInt(EXTRA_SCOPE, FilterScope.DEFAULT))
+        get() = FilterScopesHolder(filterMasks, arguments?.getInt(EXTRA_SCOPE, FilterScope.DEFAULT) ?: FilterScope.DEFAULT)
 
     private val filterMasks: Int
         get() = when (contentUri) {
@@ -99,42 +98,41 @@ class AddEditItemFragment : BaseDialogFragment(), DialogInterface.OnClickListene
             advancedCollapseIndicator.rotation = if (value) 90f else 0f
         }
 
-    override fun onClick(dialog: DialogInterface, which: Int) {
-        dialog as AlertDialog
-        when (which) {
-            DialogInterface.BUTTON_POSITIVE -> {
-                val scope = dialog.scopes ?: return
-                if (!canEditValue) {
-                    saveScopeOnly(scope)
-                } else {
-                    val value = dialog.value ?: return
-                    saveItem(value, scope)
-                }
+    private fun handlePositiveClick(button: View) {
+        val scope = dialog?.scopes ?: return
+        if (!canEditValue) {
+            saveScopeOnly(scope)
+        } else {
+            val value = dialog!!.value?.takeIf(String::isNotEmpty)
+            if (value == null) {
+                dialog!!.editText.error = getString(R.string.hint_error_field_required)
+                return
             }
+            saveItem(value, scope)
         }
-
+        dismiss()
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val builder = AlertDialog.Builder(context)
+        val builder = AlertDialog.Builder(requireContext())
         builder.setView(R.layout.dialog_filter_rule_editor)
 
-        if (arguments.getLong(EXTRA_ID, -1) >= 0) {
+        if (arguments?.getLong(EXTRA_ID, -1) ?: -1 >= 0) {
             builder.setTitle(R.string.action_edit_filter_rule)
         } else {
             builder.setTitle(R.string.action_add_filter_rule)
         }
-        builder.setPositiveButton(android.R.string.ok, this)
-        builder.setNegativeButton(android.R.string.cancel, this)
+        builder.setPositiveButton(android.R.string.ok, null)
+        builder.setNegativeButton(android.R.string.cancel, null)
         val dialog = builder.create()
         dialog.applyOnShow {
             applyTheme()
-            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            window!!.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
             editText.setAdapter(when (contentUri) {
-                Filters.Sources.CONTENT_URI -> SourceAutoCompleteAdapter(activity)
-                Filters.Users.CONTENT_URI -> ComposeAutoCompleteAdapter(activity, requestManager).apply {
+                Filters.Sources.CONTENT_URI -> SourceAutoCompleteAdapter(requireActivity())
+                Filters.Users.CONTENT_URI -> ComposeAutoCompleteAdapter(requireActivity(), requestManager).apply {
                     val am = AccountManager.get(activity)
-                    account = AccountUtils.getDefaultAccountDetails(activity, am, false)
+                    account = AccountUtils.getDefaultAccountDetails(requireActivity(), am, false)
                 }
                 else -> null
             })
@@ -143,7 +141,8 @@ class AddEditItemFragment : BaseDialogFragment(), DialogInterface.OnClickListene
             advancedToggle.setOnClickListener {
                 advancedExpanded = !advancedExpanded
             }
-            advancedContainer.children.filter { it is CheckBox }.forEach {
+            positiveButton.setOnClickListener(this@AddEditItemFragment::handlePositiveClick)
+            advancedContainer.children.filterIsInstance<CheckBox>().forEach {
                 val checkBox = it as CheckBox
                 checkBox.setOnClickListener onClick@ {
                     if (extraFeaturesService.isAdvancedFiltersEnabled) return@onClick
@@ -152,7 +151,7 @@ class AddEditItemFragment : BaseDialogFragment(), DialogInterface.OnClickListene
                     val df = ExtraFeaturesIntroductionDialogFragment.create(
                             ExtraFeaturesService.FEATURE_ADVANCED_FILTERS)
                     df.setTargetFragment(this@AddEditItemFragment, REQUEST_CHANGE_SCOPE_PURCHASE)
-                    df.show(fragmentManager, ExtraFeaturesIntroductionDialogFragment.FRAGMENT_TAG)
+                    df.show(parentFragmentManager, ExtraFeaturesIntroductionDialogFragment.FRAGMENT_TAG)
                 }
             }
 
@@ -176,8 +175,8 @@ class AddEditItemFragment : BaseDialogFragment(), DialogInterface.OnClickListene
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putString(EXTRA_VALUE, dialog.value)
-        outState.putParcelable(EXTRA_SCOPE, dialog.scopes)
+        outState.putString(EXTRA_VALUE, dialog?.value)
+        outState.putParcelable(EXTRA_SCOPE, dialog?.scopes)
     }
 
     private fun Dialog.saveScopes(scopes: FilterScopesHolder) {
@@ -223,7 +222,7 @@ class AddEditItemFragment : BaseDialogFragment(), DialogInterface.OnClickListene
     }
 
     private fun saveScopeOnly(scopes: FilterScopesHolder) {
-        val resolver = context.contentResolver
+        val resolver = context?.contentResolver
         val contentUri = contentUri
         val rowId = rowId
 
@@ -233,11 +232,11 @@ class AddEditItemFragment : BaseDialogFragment(), DialogInterface.OnClickListene
             this[Filters.SCOPE] = scopes.value
         }
         val idWhere = Expression.equals(Filters._ID, rowId).sql
-        resolver.update(contentUri, values, idWhere, null)
+        resolver?.update(contentUri, values, idWhere, null)
     }
 
     private fun saveItem(value: String, scopes: FilterScopesHolder) {
-        val resolver = context.contentResolver
+        val resolver = context?.contentResolver
         val uri = contentUri
         val rowId = rowId
         val values = ContentValues {
@@ -247,7 +246,7 @@ class AddEditItemFragment : BaseDialogFragment(), DialogInterface.OnClickListene
         if (rowId >= 0) {
             val valueWhere = Expression.equalsArgs(Filters.VALUE).sql
             val valueWhereArgs = arrayOf(value)
-            val matchedId = resolver.queryLong(uri, Filters._ID, valueWhere, valueWhereArgs,
+            val matchedId = resolver?.queryLong(uri, Filters._ID, valueWhere, valueWhereArgs,
                     -1)
             if (matchedId != -1L && matchedId != rowId) {
                 Toast.makeText(context, R.string.message_toast_duplicate_filter_rule,
@@ -257,7 +256,7 @@ class AddEditItemFragment : BaseDialogFragment(), DialogInterface.OnClickListene
                 resolver.update(uri, values, idWhere, null)
             }
         } else {
-            resolver.insert(uri, values)
+            resolver?.insert(uri, values)
         }
     }
 

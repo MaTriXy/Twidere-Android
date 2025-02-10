@@ -34,14 +34,12 @@ import android.view.View
 import android.view.ViewGroup
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.extractor.ExtractorsFactory
-import com.google.android.exoplayer2.source.ExtractorMediaSource
-import com.google.android.exoplayer2.source.LoopingMediaSource
+import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.TrackGroupArray
-import com.google.android.exoplayer2.trackselection.AdaptiveVideoTrackSelection
+import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray
 import com.google.android.exoplayer2.upstream.DataSource
-import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter
 import com.google.android.exoplayer2.upstream.HttpDataSource
 import kotlinx.android.synthetic.main.layout_media_viewer_exo_player_view.*
 import kotlinx.android.synthetic.main.layout_media_viewer_video_overlay.*
@@ -111,7 +109,7 @@ class ExoPlayerPageFragment : MediaViewerFragment(), IBaseFragment<ExoPlayerPage
         AccountUtils.getAccountDetails(AccountManager.get(context), accountKey, true)
     }
 
-    private val playerListener = object : ExoPlayer.EventListener {
+    private val playerListener = object : Player.EventListener {
         override fun onLoadingChanged(isLoading: Boolean) {
 
         }
@@ -161,13 +159,25 @@ class ExoPlayerPageFragment : MediaViewerFragment(), IBaseFragment<ExoPlayerPage
             }
         }
 
-        override fun onPositionDiscontinuity() {
+        override fun onPositionDiscontinuity(position: Int) {
         }
 
-        override fun onTimelineChanged(timeline: Timeline, manifest: Any?) {
+        override fun onTimelineChanged(timeline: Timeline, manifest: Any?, reason: Int) {
         }
 
         override fun onTracksChanged(trackGroups: TrackGroupArray, trackSelections: TrackSelectionArray) {
+        }
+
+        override fun onSeekProcessed() {
+        }
+
+        override fun onRepeatModeChanged(repeatMode: Int) {
+        }
+
+        override fun onShuffleModeEnabledChanged(shuffleMode: Boolean) {
+        }
+
+        override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
         }
 
     }
@@ -182,7 +192,7 @@ class ExoPlayerPageFragment : MediaViewerFragment(), IBaseFragment<ExoPlayerPage
             pausedByUser = savedInstanceState.getBoolean(EXTRA_PAUSED_BY_USER)
             playAudio = savedInstanceState.getBoolean(EXTRA_PLAY_AUDIO)
         } else {
-            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val am = context?.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             // Play audio by default if ringer mode on
             playAudio = !isMutedByDefault && am.ringerMode == AudioManager.RINGER_MODE_NORMAL
         }
@@ -194,9 +204,8 @@ class ExoPlayerPageFragment : MediaViewerFragment(), IBaseFragment<ExoPlayerPage
         playerView.useController = !isControlDisabled
         playerView.controllerShowTimeoutMs = 0
         playerView.setOnSystemUiVisibilityChangeListener {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) return@setOnSystemUiVisibilityChangeListener
             val visible = MediaViewerActivity.FLAG_SYSTEM_UI_HIDE_BARS !in
-                    activity.window.decorView.systemUiVisibility
+                    requireActivity().window.decorView.systemUiVisibility
             if (visible) {
                 playerView.showController()
             } else {
@@ -268,17 +277,17 @@ class ExoPlayerPageFragment : MediaViewerFragment(), IBaseFragment<ExoPlayerPage
         return inflater.inflate(R.layout.layout_media_viewer_exo_player_view, parent, false)
     }
 
-    override fun onViewCreated(view: View?, savedInstanceState: Bundle?) {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         promotionService.setupBanner(adContainer, PromotionService.BannerType.MEDIA_PAUSE)
     }
 
     override fun onApplySystemWindowInsets(insets: Rect) {
-        val lp = videoControl.layoutParams
-        if (lp is ViewGroup.MarginLayoutParams) {
-            lp.bottomMargin = insets.bottom
-            lp.leftMargin = insets.left
-            lp.rightMargin = insets.right
+        // HACK: Apply maximum reported system inset to avoid drawing under systum UI
+        (videoControl.layoutParams as? ViewGroup.MarginLayoutParams)?.apply {
+          bottomMargin = maxOf(insets.bottom, bottomMargin)
+          leftMargin = maxOf(insets.left, leftMargin)
+          rightMargin = maxOf(insets.right, rightMargin)
         }
     }
 
@@ -316,10 +325,11 @@ class ExoPlayerPageFragment : MediaViewerFragment(), IBaseFragment<ExoPlayerPage
     private fun initializePlayer() {
         if (playerView.player != null) return
         playerView.player = run {
-            val bandwidthMeter = DefaultBandwidthMeter()
-            val videoTrackSelectionFactory = AdaptiveVideoTrackSelection.Factory(bandwidthMeter)
-            val trackSelector = DefaultTrackSelector(videoTrackSelectionFactory)
-            val player = ExoPlayerFactory.newSimpleInstance(context, trackSelector, DefaultLoadControl())
+            val videoTrackSelectionFactory = AdaptiveTrackSelection.Factory()
+            val trackSelector = DefaultTrackSelector(requireContext(), videoTrackSelectionFactory)
+            val player = SimpleExoPlayer.Builder(requireContext())
+              .setTrackSelector(trackSelector)
+              .build()
             if (positionBackup >= 0) {
                 player.seekTo(positionBackup)
             }
@@ -331,22 +341,18 @@ class ExoPlayerPageFragment : MediaViewerFragment(), IBaseFragment<ExoPlayerPage
 
         val uri = media?.getDownloadUri() ?: return
         val factory = AuthDelegatingDataSourceFactory(uri, account, dataSourceFactory)
-        val uriSource = ExtractorMediaSource(uri, factory, extractorsFactory, null, null)
-        if (isLoopEnabled) {
-            playerView.player.prepare(LoopingMediaSource(uriSource))
-        } else {
-            playerView.player.prepare(uriSource)
+        val uriSource = ProgressiveMediaSource.Factory(factory, extractorsFactory).createMediaSource(uri)
+        (playerView.player as? SimpleExoPlayer)?.apply {
+          repeatMode = if (isLoopEnabled) Player.REPEAT_MODE_ALL else Player.REPEAT_MODE_OFF
+          prepare(uriSource)
         }
         updateVolume()
     }
 
     private fun updateVolume() {
         volumeButton.setImageResource(if (playAudio) R.drawable.ic_action_speaker_max else R.drawable.ic_action_speaker_muted)
-        val player = playerView.player ?: return
-        if (playAudio) {
-            player.volume = 1f
-        } else {
-            player.volume = 0f
+        (playerView.player as? SimpleExoPlayer)?.apply {
+          volume = if (playAudio) 1f else 0f
         }
     }
 
@@ -355,7 +361,7 @@ class ExoPlayerPageFragment : MediaViewerFragment(), IBaseFragment<ExoPlayerPage
         if (bestVideoUrlAndType != null) {
             return Uri.parse(bestVideoUrlAndType.first)
         }
-        return arguments.getParcelable<Uri>(SubsampleImageViewerFragment.EXTRA_MEDIA_URI)
+        return arguments?.getParcelable<Uri>(SubsampleImageViewerFragment.EXTRA_MEDIA_URI)
     }
 
 

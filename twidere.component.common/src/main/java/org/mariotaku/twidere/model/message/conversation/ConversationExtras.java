@@ -19,8 +19,8 @@
 package org.mariotaku.twidere.model.message.conversation;
 
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.bluelinelabs.logansquare.LoganSquare;
 
@@ -35,10 +35,8 @@ import java.io.IOException;
 public abstract class ConversationExtras implements Parcelable {
     public static ConversationExtras parse(@NonNull final String extrasType, @Nullable final String json) throws IOException {
         if (json == null) return null;
-        switch (extrasType) {
-            case ExtrasType.TWITTER_OFFICIAL: {
-                return LoganSquare.parse(json, TwitterOfficialConversationExtras.class);
-            }
+        if (ExtrasType.TWITTER_OFFICIAL.equals(extrasType)) {
+            return LoganSquare.parse(json, TwitterOfficialConversationExtras.class);
         }
         return LoganSquare.parse(json, DefaultConversationExtras.class);
     }

@@ -21,7 +21,8 @@ package org.mariotaku.twidere.fragment.statuses
 
 import android.content.Context
 import android.os.Bundle
-import android.support.v4.content.Loader
+import androidx.loader.app.LoaderManager
+import androidx.loader.content.Loader
 import org.mariotaku.twidere.constant.IntentConstants.*
 import org.mariotaku.twidere.fragment.AbsMediaStatusesFragment
 import org.mariotaku.twidere.loader.statuses.MediaTimelineLoader
@@ -52,7 +53,7 @@ class UserMediaTimelineFragment : AbsMediaStatusesFragment() {
         args.putString(EXTRA_MAX_ID, maxId)
         args.putString(EXTRA_SINCE_ID, sinceId)
         args.putBoolean(EXTRA_FROM_USER, true)
-        loaderManager.restartLoader(loaderId, args, this)
+        LoaderManager.getInstance(this).restartLoader(loaderId, args, this)
         return 0
     }
 

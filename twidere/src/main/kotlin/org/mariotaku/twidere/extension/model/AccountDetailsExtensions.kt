@@ -15,8 +15,12 @@ import org.mariotaku.twidere.util.InternalTwitterContentUtils
 import org.mariotaku.twidere.util.text.FanfouValidator
 import org.mariotaku.twidere.util.text.MastodonValidator
 import org.mariotaku.twidere.util.text.TwitterValidator
+import kotlin.math.min
 
-fun AccountDetails.isOfficial(context: Context): Boolean {
+fun AccountDetails.isOfficial(context: Context?): Boolean {
+    if (context == null) {
+        return false
+    }
     val extra = this.extras
     if (extra is TwitterAccountExtras) {
         return extra.isOfficialCredentials
@@ -36,6 +40,9 @@ val AccountExtras.official: Boolean
         }
         return false
     }
+
+val AccountDetails.hasDm: Boolean
+    get() = type in arrayOf(AccountType.FANFOU, AccountType.TWITTER)
 
 fun <T> AccountDetails.newMicroBlogInstance(context: Context, cls: Class<T>): T {
     return credentials.newMicroBlogInstance(context, type, cls)
@@ -66,6 +73,16 @@ fun AccountDetails.getMediaSizeLimit(@MediaCategory mediaCategory: String? = nul
                 maxSizeSync = extras.uploadLimit
                 maxSizeAsync = extras.uploadLimit
             }
+            return UpdateStatusTask.SizeLimit(imageLimit, videoLimit)
+        }
+        AccountType.MASTODON -> {
+            val imageLimit = AccountExtras.ImageLimit().apply {
+                maxSizeSync = 8 * 1024 * 1024
+                maxSizeAsync = 8 * 1024 * 1024
+                maxHeight = 1280
+                maxWidth = 1280
+            }
+            val videoLimit = AccountExtras.VideoLimit.twitterDefault()
             return UpdateStatusTask.SizeLimit(imageLimit, videoLimit)
         }
         else -> return null
@@ -99,16 +116,12 @@ val Array<AccountDetails>.textLimit: Int
         forEach { details ->
             val currentLimit = details.textLimit
             if (currentLimit != 0) {
-                if (limit <= 0) {
-                    limit = currentLimit
+                limit = if (limit <= 0) {
+                    currentLimit
                 } else {
-                    limit = Math.min(limit, currentLimit)
+                    min(limit, currentLimit)
                 }
             }
         }
         return limit
     }
-
-
-val AccountDetails.isStreamingSupported: Boolean
-    get() = type == AccountType.TWITTER

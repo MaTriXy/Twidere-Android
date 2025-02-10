@@ -22,7 +22,7 @@ package org.mariotaku.twidere.view
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.PorterDuff.Mode
-import android.support.annotation.ColorInt
+import androidx.annotation.ColorInt
 import android.util.AttributeSet
 import org.mariotaku.chameleon.Chameleon
 import org.mariotaku.chameleon.ChameleonView
@@ -97,13 +97,16 @@ class ActionIconThemedTextView(
         for (d in TextViewSupport.getCompoundDrawablesRelative(this)) {
             if (d == null) continue
             d.mutate()
-            val color: Int
-            if (isActivated) {
-                color = activatedColor
-            } else if (isEnabled) {
-                color = defaultColor
-            } else {
-                color = disabledColor
+            val color: Int = when {
+                isActivated -> {
+                    activatedColor
+                }
+                isEnabled -> {
+                    defaultColor
+                }
+                else -> {
+                    disabledColor
+                }
             }
 
             if (iconWidth > 0 && iconHeight > 0) {

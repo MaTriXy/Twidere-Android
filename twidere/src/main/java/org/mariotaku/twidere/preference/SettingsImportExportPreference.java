@@ -21,14 +21,13 @@ package org.mariotaku.twidere.preference;
 
 import android.app.Dialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.preference.DialogPreference;
-import android.support.v7.preference.PreferenceDialogFragmentCompat;
-import android.support.v7.preference.PreferenceFragmentCompat;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.preference.DialogPreference;
+import androidx.preference.PreferenceDialogFragmentCompat;
+import androidx.preference.PreferenceFragmentCompat;
 import android.util.AttributeSet;
 
 import org.mariotaku.twidere.R;
@@ -53,7 +52,7 @@ public class SettingsImportExportPreference extends DialogPreference implements 
     public void displayDialog(@NonNull PreferenceFragmentCompat fragment) {
         ImportExportDialogFragment df = ImportExportDialogFragment.newInstance(getKey());
         df.setTargetFragment(fragment, 0);
-        df.show(fragment.getFragmentManager(), getKey());
+        df.show(fragment.getParentFragmentManager(), getKey());
     }
 
     public static class ImportExportDialogFragment extends PreferenceDialogFragmentCompat {
@@ -78,19 +77,9 @@ public class SettingsImportExportPreference extends DialogPreference implements 
             entries[1] = context.getString(R.string.export_settings);
             values[0] = new Intent(context, DataImportActivity.class);
             values[1] = new Intent(context, DataExportActivity.class);
-            builder.setItems(entries, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    startActivity(values[which]);
-                }
-            });
+            builder.setItems(entries, (dialog, which) -> startActivity(values[which]));
             final AlertDialog dialog = builder.create();
-            dialog.setOnShowListener(new DialogInterface.OnShowListener() {
-                @Override
-                public void onShow(final DialogInterface dialog) {
-                    DialogExtensionsKt.applyTheme((AlertDialog) dialog);
-                }
-            });
+            dialog.setOnShowListener(dialog1 -> DialogExtensionsKt.applyTheme((AlertDialog) dialog1));
             return dialog;
         }
 

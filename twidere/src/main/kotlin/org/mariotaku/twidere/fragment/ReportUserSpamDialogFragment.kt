@@ -19,7 +19,7 @@
 
 package org.mariotaku.twidere.fragment
 
-import android.support.v4.app.FragmentManager
+import androidx.fragment.app.FragmentManager
 import org.mariotaku.ktextension.Bundle
 import org.mariotaku.ktextension.set
 import org.mariotaku.twidere.R
@@ -49,7 +49,7 @@ class ReportUserSpamDialogFragment : AbsUserMuteBlockDialogFragment() {
 
     companion object {
 
-        val FRAGMENT_TAG = "report_user_spam"
+        const val FRAGMENT_TAG = "report_user_spam"
 
         fun show(fm: FragmentManager, user: ParcelableUser): ReportUserSpamDialogFragment {
             val f = ReportUserSpamDialogFragment()

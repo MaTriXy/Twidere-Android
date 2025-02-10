@@ -18,7 +18,7 @@
 
 package org.mariotaku.microblog.library.twitter.model;
 
-import android.support.annotation.Keep;
+import androidx.annotation.Keep;
 
 import com.bluelinelabs.logansquare.JsonMapper;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -37,7 +37,6 @@ import java.util.List;
 @Keep
 public class IDs$$JsonObjectMapper extends JsonMapper<IDs> {
 
-    @SuppressWarnings("TryWithIdenticalCatches")
     @Override
     public IDs parse(JsonParser jsonParser) throws IOException {
         IDs instance = new IDs();

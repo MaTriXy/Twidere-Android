@@ -37,20 +37,6 @@ import android.graphics.drawable.Drawable
 import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
-import android.support.annotation.StringRes
-import android.support.v4.app.Fragment
-import android.support.v4.app.NotificationCompat
-import android.support.v4.view.GravityCompat
-import android.support.v4.view.ViewCompat
-import android.support.v4.view.ViewPager.OnPageChangeListener
-import android.support.v4.view.WindowInsetsCompat
-import android.support.v4.view.unwrapped
-import android.support.v4.widget.DrawerLayout
-import android.support.v4.widget.DrawerLayoutAccessor
-import android.support.v7.app.ActionBarDrawerToggle
-import android.support.v7.app.AlertDialog
-import android.support.v7.app.AppCompatDelegate
-import android.support.v7.widget.TintTypedArray
 import android.util.SparseIntArray
 import android.view.Gravity
 import android.view.KeyEvent
@@ -59,6 +45,18 @@ import android.view.View
 import android.view.View.OnClickListener
 import android.view.View.OnLongClickListener
 import android.view.ViewGroup.MarginLayoutParams
+import android.widget.RelativeLayout
+import androidx.annotation.StringRes
+import androidx.appcompat.app.ActionBarDrawerToggle
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.appcompat.widget.TintTypedArray
+import androidx.core.app.NotificationCompat
+import androidx.core.view.*
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.drawerlayout.widget.DrawerLayoutAccessor
+import androidx.fragment.app.Fragment
+import androidx.viewpager.widget.ViewPager.OnPageChangeListener
 import com.getkeepsafe.taptargetview.TapTarget
 import com.getkeepsafe.taptargetview.TapTargetView
 import com.squareup.otto.Subscribe
@@ -103,13 +101,13 @@ import org.mariotaku.twidere.provider.TwidereDataStore.Activities
 import org.mariotaku.twidere.provider.TwidereDataStore.Messages.Conversations
 import org.mariotaku.twidere.provider.TwidereDataStore.Statuses
 import org.mariotaku.twidere.receiver.NotificationReceiver
-import org.mariotaku.twidere.service.StreamingService
 import org.mariotaku.twidere.util.*
 import org.mariotaku.twidere.util.KeyboardShortcutsHandler.KeyboardShortcutCallback
 import org.mariotaku.twidere.util.premium.ExtraFeaturesService
 import org.mariotaku.twidere.view.HomeDrawerLayout
 import org.mariotaku.twidere.view.TabPagerIndicator
 import java.lang.ref.WeakReference
+import kotlin.math.floor
 
 class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, SupportFragmentCallback,
         OnLongClickListener, DrawerLayout.DrawerListener {
@@ -288,8 +286,6 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
         val initialTabPosition = handleIntent(intent, savedInstanceState == null)
         setTabPosition(initialTabPosition)
 
-        StreamingService.startOrStopService(this)
-
         if (!showDrawerTutorial() && !kPreferences[defaultAutoRefreshAskedKey]) {
             showAutoRefreshConfirm()
         }
@@ -329,9 +325,6 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
 
     override fun onDestroy() {
         if (isFinishing) {
-            // Stop only when exiting explicitly
-            StreamingService.startOrStopService(this)
-
             // Delete unused items in databases.
             val context = applicationContext
             task { DataStoreUtils.cleanDatabasesByItemLimit(context) }
@@ -345,13 +338,9 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
         drawerToggle.onConfigurationChanged(newConfig)
     }
 
-    override fun onAttachFragment(fragment: Fragment?) {
+    override fun onAttachFragment(fragment: Fragment) {
         super.onAttachFragment(fragment)
         updateActionsButton()
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
     }
 
     override fun onClick(v: View) {
@@ -404,14 +393,22 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
 
     override fun getSystemWindowInsets(caller: Fragment, insets: Rect): Boolean {
         if (caller === leftDrawerFragment) return super.getSystemWindowInsets(caller, insets)
-        if (mainTabs == null || homeContent == null) return false
+        if (mainTabs == null || homeContent == null || toolbar == null || !toolbar.isVisible) return false
         val height = mainTabs.height
-        if (height != 0) {
-            insets.top = height
+        if (preferences[tabPositionKey] == SharedPreferenceConstants.VALUE_TAB_POSITION_TOP) {
+            if (height != 0) {
+                insets.top = height
+            } else {
+                insets.top = ThemeUtils.getActionBarHeight(this)
+            }
+            insets.bottom = systemWindowsInsets?.bottom ?: 0
         } else {
-            insets.top = ThemeUtils.getActionBarHeight(this)
+            if (height != 0) {
+                insets.bottom = height
+            } else {
+                insets.bottom = ThemeUtils.getActionBarHeight(this)
+            }
         }
-        insets.bottom = systemWindowsInsets?.bottom ?: 0
         return true
     }
 
@@ -426,12 +423,18 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
         if (!ViewCompat.getFitsSystemWindows(homeMenu)) {
             homeContent.setPadding(0, insets.systemWindowInsetTop, 0, 0)
         }
+        (toolbar.layoutParams as? MarginLayoutParams)?.bottomMargin = insets.systemWindowInsetBottom
         (actionsButton.layoutParams as? MarginLayoutParams)?.bottomMargin =
-                actionsButtonBottomMargin + insets.systemWindowInsetBottom
+                actionsButtonBottomMargin + if (preferences[tabPositionKey] == SharedPreferenceConstants.VALUE_TAB_POSITION_TOP) {
+                    insets.systemWindowInsetBottom
+                } else {
+                    0
+                }
         return insets
     }
 
     override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
         val tabPosition = handleIntent(intent, false)
         if (tabPosition >= 0) {
             mainPager.currentItem = tabPosition.coerceInOr(0 until pagerAdapter.count, 0)
@@ -593,7 +596,7 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
 
     override var controlBarOffset: Float
         get() {
-            if (mainTabs.columns > 1) {
+            if (mainTabs.columns > 1 || !toolbar.isVisible) {
                 val lp = actionsButton.layoutParams
                 val total: Float
                 total = if (lp is MarginLayoutParams) {
@@ -604,19 +607,50 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
                 return 1 - actionsButton.translationY / total
             }
             val totalHeight = controlBarHeight.toFloat()
-            return 1 + toolbar.translationY / totalHeight
+            return 1 + if (preferences[tabPositionKey] == SharedPreferenceConstants.VALUE_TAB_POSITION_TOP) {
+                toolbar.translationY
+            }  else {
+                -toolbar.translationY
+            } / totalHeight
         }
         set(offset) {
-            val translationY = if (mainTabs.columns > 1) 0 else (controlBarHeight * (offset - 1)).toInt()
-            toolbar.translationY = translationY.toFloat()
-            windowOverlay.translationY = translationY.toFloat()
-            val lp = actionsButton.layoutParams
-            if (lp is MarginLayoutParams) {
-                actionsButton.translationY = (lp.bottomMargin + actionsButton.height) * (1 - offset)
+            if (preferences[tabPositionKey] == SharedPreferenceConstants.VALUE_TAB_POSITION_TOP) {
+                val translationY = if (mainTabs.columns > 1 || !toolbar.isVisible) {
+                    0
+                } else {
+                    (controlBarHeight * (offset - 1)).toInt()
+                }
+                toolbar.translationY = translationY.toFloat()
+                windowOverlay.translationY = translationY.toFloat()
+                val lp = actionsButton.layoutParams
+                if (lp is MarginLayoutParams) {
+                    actionsButton.translationY = (lp.bottomMargin + actionsButton.height) * (1 - offset)
+                } else {
+                    actionsButton.translationY = actionsButton.height * (1 - offset)
+                }
+                notifyControlBarOffsetChanged()
             } else {
-                actionsButton.translationY = actionsButton.height * (1 - offset)
+                val layoutparams = toolbar.layoutParams
+                val toolbarMarginBottom = if (layoutparams is MarginLayoutParams) {
+                    layoutparams.bottomMargin
+                } else {
+                    0
+                }
+                val translationY = if (mainTabs.columns > 1 || !toolbar.isVisible) {
+                    0
+                } else {
+                    ((toolbar.height + toolbarMarginBottom) * (offset - 1)).toInt()
+                }
+                toolbar.translationY = -translationY.toFloat()
+                windowOverlay.translationY = -translationY.toFloat()
+                val lp = actionsButton.layoutParams
+                if (lp is MarginLayoutParams) {
+                    actionsButton.translationY = (lp.bottomMargin + toolbar.height + actionsButton.height + toolbarMarginBottom) * (1 - offset)
+                } else {
+                    actionsButton.translationY = actionsButton.height * (1 - offset)
+                }
+                notifyControlBarOffsetChanged()
             }
-            notifyControlBarOffsetChanged()
         }
 
     override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
@@ -698,14 +732,15 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
             } else {
                 Utils.getDefaultAccountKey(this)
             }
-            IntentUtils.openSearch(this, accountKey, query)
+            if (query != null) {
+                IntentUtils.openSearch(this, accountKey, query)
+            }
             return -1
         }
         val refreshOnStart = preferences.getBoolean(SharedPreferenceConstants.KEY_REFRESH_ON_START, false)
         if (handleExtraIntent && refreshOnStart) {
             twitterWrapper.refreshAll()
         }
-        val extraIntent = intent.getParcelableExtra<Intent>(EXTRA_EXTRA_INTENT)
 
         val uri = intent.data
         @CustomTabType
@@ -725,7 +760,7 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
                     }
                 }
             }
-            if (initialTab == -1 && (extraIntent == null || !handleExtraIntent)) {
+            if (initialTab == -1 && !handleExtraIntent) {
                 // Tab not found, open account specific page
                 when (tabType) {
                     CustomTabType.NOTIFICATIONS_TIMELINE -> {
@@ -738,10 +773,6 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
                     }
                 }
             }
-        }
-        if (extraIntent != null && handleExtraIntent) {
-            extraIntent.setExtrasClassLoader(classLoader)
-            startActivity(extraIntent)
         }
         return initialTab
     }
@@ -832,12 +863,32 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
                 "wide" -> resources.getDimension(R.dimen.preferred_tab_column_width_wide)
                 else -> resources.getDimension(R.dimen.preferred_tab_column_width_normal)
             }
-            mainTabs.columns = Math.floor(1.0 / pagerAdapter.getPageWidth(0)).toInt()
+            mainTabs.columns = floor(1.0 / pagerAdapter.getPageWidth(0)).toInt()
         } else {
             mainPager.pageMargin = 0
             mainPager.setPageMarginDrawable(null)
             pagerAdapter.hasMultipleColumns = false
             mainTabs.columns = 1
+        }
+        if (pagerAdapter.count == 1 && preferences[autoHideTabs]) {
+            toolbar.isVisible = false
+            actionsButton.updateLayoutParams<RelativeLayout.LayoutParams> {
+                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE)
+            }
+        } else if (preferences[tabPositionKey] == SharedPreferenceConstants.VALUE_TAB_POSITION_TOP) {
+            toolbar.updateLayoutParams<RelativeLayout.LayoutParams> {
+                addRule(RelativeLayout.ALIGN_PARENT_TOP, RelativeLayout.TRUE)
+            }
+            actionsButton.updateLayoutParams<RelativeLayout.LayoutParams> {
+                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE)
+            }
+        } else {
+            toolbar.updateLayoutParams<RelativeLayout.LayoutParams> {
+                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE)
+            }
+            actionsButton.updateLayoutParams<RelativeLayout.LayoutParams> {
+                addRule(RelativeLayout.ABOVE, toolbar.id)
+            }
         }
     }
 
@@ -1023,7 +1074,7 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
 
     class AutoRefreshConfirmDialogFragment : BaseDialogFragment() {
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-            val builder = AlertDialog.Builder(context)
+            val builder = AlertDialog.Builder(requireContext())
             builder.setTitle(R.string.auto_refresh)
             builder.setMessage(R.string.message_auto_refresh_confirm)
             builder.setPositiveButton(android.R.string.ok) { _, _ ->
@@ -1037,14 +1088,14 @@ class HomeActivity : BaseActivity(), OnClickListener, OnPageChangeListener, Supp
             return dialog
         }
 
-        override fun onDismiss(dialog: DialogInterface?) {
+        override fun onDismiss(dialog: DialogInterface) {
             kPreferences[defaultAutoRefreshAskedKey] = true
             super.onDismiss(dialog)
         }
     }
 
     companion object {
-        private val HOME_AS_UP_ATTRS = intArrayOf(android.support.v7.appcompat.R.attr.homeAsUpIndicator)
+        private val HOME_AS_UP_ATTRS = intArrayOf(android.R.attr.homeAsUpIndicator)
     }
 
 

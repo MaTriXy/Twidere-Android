@@ -21,7 +21,7 @@ package org.mariotaku.twidere.util.cache
 
 import android.net.Uri
 import com.bumptech.glide.disklrucache.DiskLruCache
-import okio.ByteString
+import okio.ByteString.Companion.encode
 import org.mariotaku.mediaviewer.library.FileCache
 import org.mariotaku.twidere.BuildConfig
 import org.mariotaku.twidere.provider.CacheProvider
@@ -64,7 +64,7 @@ class DiskLRUFileCache(val cacheDir: File) : FileCache {
 
         try {
             editor.getFile(0).outputStream().use {
-                var bytesCopied: Int = 0
+                var bytesCopied = 0
                 val buffer = ByteArray(8192)
                 var bytes = stream.read(buffer)
                 while (bytes >= 0) {
@@ -86,6 +86,6 @@ class DiskLRUFileCache(val cacheDir: File) : FileCache {
     }
 
     private fun hash(key: String): String {
-        return ByteString.encodeString(key, Charsets.UTF_8).sha256().hex()
+        return key.encode(Charsets.UTF_8).sha256().hex()
     }
 }

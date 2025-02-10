@@ -1,18 +1,18 @@
 /*
  * 				Twidere - Twitter client for Android
- * 
+ *
  *  Copyright (C) 2012-2014 Mariotaku Lee <mariotaku.lee@gmail.com>
- * 
+ *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
- * 
+ *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- * 
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -27,14 +27,15 @@ import android.content.res.Resources;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.FragmentActivity;
-import android.support.v4.app.LoaderManager.LoaderCallbacks;
-import android.support.v4.content.FixedAsyncTaskLoader;
-import android.support.v4.content.Loader;
-import android.support.v4.content.res.ResourcesCompat;
-import android.support.v7.app.AlertDialog;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.FragmentActivity;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.app.LoaderManager.LoaderCallbacks;
+import androidx.loader.content.FixedAsyncTaskLoader;
+import androidx.loader.content.Loader;
+import androidx.core.content.res.ResourcesCompat;
+import androidx.appcompat.app.AlertDialog;
 import android.text.TextUtils.TruncateAt;
 import android.view.View;
 import android.view.ViewGroup;
@@ -73,7 +74,7 @@ public class FileSelectorDialogFragment extends BaseDialogFragment implements Lo
     public void onActivityCreated(final Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         final Bundle args = getArguments();
-        getLoaderManager().initLoader(0, args, this);
+        LoaderManager.getInstance(this).initLoader(0, args, this);
     }
 
     @Override
@@ -118,14 +119,11 @@ public class FileSelectorDialogFragment extends BaseDialogFragment implements Lo
             builder.setPositiveButton(android.R.string.ok, this);
         }
         final AlertDialog dialog = builder.create();
-        dialog.setOnShowListener(new DialogInterface.OnShowListener() {
-            @Override
-            public void onShow(final DialogInterface dialog) {
-                final AlertDialog alertDialog = (AlertDialog) dialog;
-                DialogExtensionsKt.applyTheme(alertDialog);
-                final ListView listView = alertDialog.getListView();
-                listView.setOnItemClickListener(FileSelectorDialogFragment.this);
-            }
+        dialog.setOnShowListener(dialog1 -> {
+            final AlertDialog alertDialog = (AlertDialog) dialog1;
+            DialogExtensionsKt.applyTheme(alertDialog);
+            final ListView listView = alertDialog.getListView();
+            listView.setOnItemClickListener(FileSelectorDialogFragment.this);
         });
         return dialog;
     }
@@ -158,7 +156,7 @@ public class FileSelectorDialogFragment extends BaseDialogFragment implements Lo
         if (file.isDirectory()) {
             final Bundle args = getArguments();
             args.putString(EXTRA_PATH, file.getAbsolutePath());
-            getLoaderManager().restartLoader(0, args, this);
+            LoaderManager.getInstance(this).restartLoader(0, args, this);
         } else if (file.isFile() && !isPickDirectory()) {
             final FragmentActivity a = getActivity();
             if (a instanceof Callback) {
@@ -268,12 +266,9 @@ public class FileSelectorDialogFragment extends BaseDialogFragment implements Lo
         private final String[] extensions;
         private final Pattern extensions_regex;
 
-        private static final Comparator<File> NAME_COMPARATOR = new Comparator<File>() {
-            @Override
-            public int compare(final File file1, final File file2) {
-                final Locale loc = Locale.getDefault();
-                return file1.getName().toLowerCase(loc).compareTo(file2.getName().toLowerCase(loc));
-            }
+        private static final Comparator<File> NAME_COMPARATOR = (file1, file2) -> {
+            final Locale loc = Locale.getDefault();
+            return file1.getName().toLowerCase(loc).compareTo(file2.getName().toLowerCase(loc));
         };
 
         public FilesLoader(final Context context, final File path, final String[] extensions) {

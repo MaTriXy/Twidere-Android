@@ -6,11 +6,12 @@ import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.annotation.WorkerThread;
 import android.text.TextUtils;
 import android.webkit.URLUtil;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.WorkerThread;
 
 import org.mariotaku.microblog.library.MicroBlog;
 import org.mariotaku.restfu.http.Endpoint;
@@ -94,7 +95,7 @@ public class MicroBlogAPIFactory implements TwidereConstants {
 
     @NonNull
     public static String getApiBaseUrl(@NonNull String format, @Nullable final String domain) {
-        final Matcher matcher = Pattern.compile("\\[(\\.?)DOMAIN(\\.?)]", Pattern.CASE_INSENSITIVE).matcher(format);
+        final Matcher matcher = Pattern.compile("\\[(\\.?)DOMAIN(\\.?)](\\.?)", Pattern.CASE_INSENSITIVE).matcher(format);
         final String baseUrl;
         if (!matcher.find()) {
             // For backward compatibility
@@ -110,7 +111,7 @@ public class MicroBlogAPIFactory implements TwidereConstants {
         } else if (TextUtils.isEmpty(domain)) {
             baseUrl = matcher.replaceAll("");
         } else {
-            baseUrl = matcher.replaceAll("$1" + domain + "$2");
+            baseUrl = matcher.replaceAll("$1" + domain + "$2" + "$3");
         }
         // In case someone set invalid base url
         if (HttpUrl.parse(baseUrl) == null) {
@@ -125,11 +126,11 @@ public class MicroBlogAPIFactory implements TwidereConstants {
         // Not an url
         if (idxOfSlash < 0) return format;
         final int startOfHost = idxOfSlash + 3;
-        if (startOfHost < 0) return getApiBaseUrl("https://[DOMAIN.]twitter.com/", domain);
+        if (startOfHost < 0) return getApiBaseUrl(DEFAULT_TWITTER_API_URL_FORMAT, domain);
         final int endOfHost = format.indexOf('/', startOfHost);
         final String host = endOfHost != -1 ? format.substring(startOfHost, endOfHost) : format.substring(startOfHost);
         final StringBuilder sb = new StringBuilder();
-        sb.append(format.substring(0, startOfHost));
+        sb.append(format, 0, startOfHost);
         if (host.equalsIgnoreCase("api.twitter.com")) {
             if (domain != null) {
                 sb.append(domain);

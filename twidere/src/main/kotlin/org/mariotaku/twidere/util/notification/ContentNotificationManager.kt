@@ -27,7 +27,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.media.AudioManager
 import android.net.Uri
-import android.support.v4.app.NotificationCompat
+import androidx.core.app.NotificationCompat
 import org.mariotaku.kpreferences.get
 import org.mariotaku.ktextension.forEachRow
 import org.mariotaku.ktextension.isEmpty
@@ -123,16 +123,20 @@ class ContentNotificationManager(
             val displayName = userColorNameManager.getDisplayName(userCursor.getString(userIndices[Statuses.USER_KEY]),
                     userCursor.getString(userIndices[Statuses.USER_NAME]), userCursor.getString(userIndices[Statuses.USER_SCREEN_NAME]),
                     nameFirst)
-            if (usersCount == 1) {
-                notificationContent = context.getString(R.string.from_name, displayName)
-            } else if (usersCount == 2) {
-                userCursor.moveToPosition(1)
-                val othersName = userColorNameManager.getDisplayName(userCursor.getString(userIndices[Statuses.USER_KEY]),
+            notificationContent = when (usersCount) {
+                1 -> {
+                    context.getString(R.string.from_name, displayName)
+                }
+                2 -> {
+                    userCursor.moveToPosition(1)
+                    val othersName = userColorNameManager.getDisplayName(userCursor.getString(userIndices[Statuses.USER_KEY]),
                         userCursor.getString(userIndices[Statuses.USER_NAME]), userCursor.getString(userIndices[Statuses.USER_SCREEN_NAME]),
                         nameFirst)
-                notificationContent = resources.getString(R.string.from_name_and_name, displayName, othersName)
-            } else {
-                notificationContent = resources.getString(R.string.from_name_and_N_others, displayName, usersCount - 1)
+                    resources.getString(R.string.from_name_and_name, displayName, othersName)
+                }
+                else -> {
+                    resources.getString(R.string.from_name_and_N_others, displayName, usersCount - 1)
+                }
             }
 
             // Setup notification
@@ -367,7 +371,7 @@ class ContentNotificationManager(
     }
 
     fun showDraft(draftUri: Uri): Long {
-        val draftId = draftUri.lastPathSegment.toLongOrNull() ?: return -1
+        val draftId = draftUri.lastPathSegment?.toLongOrNull() ?: return -1
         val where = Expression.equals(Drafts._ID, draftId)
         val item = context.contentResolver.queryOne(Drafts.CONTENT_URI, Drafts.COLUMNS, where.sql,
                 null, null, Draft::class.java) ?: return -1
@@ -414,10 +418,10 @@ class ContentNotificationManager(
             notificationDefaults = notificationDefaults or NotificationCompat.DEFAULT_LIGHTS
         }
         if (isNotificationAudible()) {
-            if (AccountPreferences.isNotificationHasVibration(defaultFlags)) {
-                notificationDefaults = notificationDefaults or NotificationCompat.DEFAULT_VIBRATE
+            notificationDefaults = if (AccountPreferences.isNotificationHasVibration(defaultFlags)) {
+                notificationDefaults or NotificationCompat.DEFAULT_VIBRATE
             } else {
-                notificationDefaults = notificationDefaults and NotificationCompat.DEFAULT_VIBRATE.inv()
+                notificationDefaults and NotificationCompat.DEFAULT_VIBRATE.inv()
             }
             if (AccountPreferences.isNotificationHasRingtone(defaultFlags)) {
                 builder.setSound(pref.notificationRingtone, AudioManager.STREAM_NOTIFICATION)

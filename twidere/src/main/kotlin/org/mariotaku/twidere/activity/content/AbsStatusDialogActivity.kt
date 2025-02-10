@@ -64,6 +64,7 @@ abstract class AbsStatusDialogActivity : BaseActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
             REQUEST_SELECT_ACCOUNT -> {
                 if (resultCode == RESULT_OK && data != null) {
@@ -73,7 +74,9 @@ abstract class AbsStatusDialogActivity : BaseActivity() {
                         return
                     }
                     val accountKey = data.getParcelableExtra<UserKey>(EXTRA_ACCOUNT_KEY)
-                    showDialogFragment(accountKey, statusId, status)
+                    if (accountKey != null) {
+                        showDialogFragment(accountKey, statusId, status)
+                    }
                     return
                 }
             }

@@ -22,11 +22,10 @@ package org.mariotaku.twidere.adapter
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.support.v4.app.Fragment
-import android.support.v4.app.FragmentManager
-import android.support.v4.view.PagerAdapter
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import androidx.viewpager.widget.PagerAdapter
 import android.view.View
-import android.view.ViewGroup
 import org.mariotaku.twidere.fragment.iface.RefreshScrollTopInterface
 import org.mariotaku.twidere.fragment.iface.SupportFragmentCallback
 import org.mariotaku.twidere.model.SupportTabSpec
@@ -61,7 +60,7 @@ class SupportTabsAdapter(
         return this.tabs.size
     }
 
-    override fun getItemPosition(obj: Any?): Int {
+    override fun getItemPosition(obj: Any): Int {
         if (obj !is Fragment) return PagerAdapter.POSITION_NONE
         val args = obj.arguments ?: return PagerAdapter.POSITION_NONE
         return args.getInt(EXTRA_ADAPTER_POSITION, PagerAdapter.POSITION_NONE)
@@ -95,10 +94,6 @@ class SupportTabsAdapter(
         val fragment = Fragment.instantiate(context, this.tabs[position].cls.name)
         fragment.arguments = getPageArguments(this.tabs[position], position)
         return fragment
-    }
-
-    override fun startUpdate(container: ViewGroup) {
-        super.startUpdate(container)
     }
 
     override fun getPageIcon(position: Int): Drawable {
@@ -167,6 +162,6 @@ class SupportTabsAdapter(
 
     companion object {
 
-        private val EXTRA_ADAPTER_POSITION = "adapter_position"
+        private const val EXTRA_ADAPTER_POSITION = "adapter_position"
     }
 }

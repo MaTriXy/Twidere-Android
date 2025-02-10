@@ -24,12 +24,12 @@ import android.content.Context
 import android.content.DialogInterface
 import android.graphics.Color
 import android.os.Bundle
-import android.support.v4.content.ContextCompat
-import android.support.v7.app.AlertDialog
-import android.support.v7.preference.DialogPreference
-import android.support.v7.preference.PreferenceDialogFragmentCompat
-import android.support.v7.preference.PreferenceFragmentCompat
-import android.support.v7.preference.PreferenceViewHolder
+import androidx.core.content.ContextCompat
+import androidx.appcompat.app.AlertDialog
+import androidx.preference.DialogPreference
+import androidx.preference.PreferenceDialogFragmentCompat
+import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.PreferenceViewHolder
 import android.util.AttributeSet
 import android.util.Log
 import android.widget.ImageView
@@ -81,7 +81,7 @@ class ColorPickerPreference(context: Context, attrs: AttributeSet? = null) :
     override fun displayDialog(fragment: PreferenceFragmentCompat) {
         val df = ColorPickerPreferenceDialogFragment.newInstance(key)
         df.setTargetFragment(fragment, 0)
-        df.show(fragment.fragmentManager, key)
+        fragment.parentFragmentManager.let { df.show(it, key) }
     }
 
     override fun onBindViewHolder(holder: PreferenceViewHolder) {
@@ -97,7 +97,7 @@ class ColorPickerPreference(context: Context, attrs: AttributeSet? = null) :
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
             val preference = preference as ColorPickerPreference
             val context = context
-            val builder = AlertDialog.Builder(context)
+            val builder = AlertDialog.Builder(requireContext())
             builder.setTitle(preference.dialogTitle)
             builder.setView(R.layout.cp__dialog_color_picker)
             builder.setPositiveButton(android.R.string.ok, this)
@@ -118,10 +118,11 @@ class ColorPickerPreference(context: Context, attrs: AttributeSet? = null) :
         }
 
         override fun onShow(dialog: DialogInterface) {
+            val context = context ?: return
             val preference = preference as ColorPickerPreference
             val alertDialog = dialog as AlertDialog
             alertDialog.applyTheme()
-            val windowView = alertDialog.window!!.decorView ?: return
+            val windowView = alertDialog.window!!.decorView
             controller = ColorPickerDialog.Controller(context, windowView)
             controller.setAlphaEnabled(preference.isAlphaSliderEnabled)
             for (presetColor in PRESET_COLORS) {
@@ -136,7 +137,7 @@ class ColorPickerPreference(context: Context, attrs: AttributeSet? = null) :
             fun newInstance(key: String): ColorPickerPreferenceDialogFragment {
                 val df = ColorPickerPreferenceDialogFragment()
                 val args = Bundle()
-                args.putString(PreferenceDialogFragmentCompat.ARG_KEY, key)
+                args.putString(ARG_KEY, key)
                 df.arguments = args
                 return df
             }

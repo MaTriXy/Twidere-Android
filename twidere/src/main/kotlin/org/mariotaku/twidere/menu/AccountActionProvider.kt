@@ -3,7 +3,7 @@ package org.mariotaku.twidere.menu
 import android.accounts.AccountManager
 import android.content.Context
 import android.content.Intent
-import android.support.v4.view.ActionProvider
+import androidx.core.view.ActionProvider
 import android.view.Menu
 import android.view.SubMenu
 import org.mariotaku.twidere.TwidereConstants
@@ -38,9 +38,10 @@ class AccountActionProvider(
             for (i in 0 until subMenu.size()) {
                 val item = subMenu.getItem(i)
                 val intent = item.intent
-                val account: AccountDetails = intent.getParcelableExtra(EXTRA_ACCOUNT)
-                if (it.contains(account.key)) {
-                    item.isChecked = true
+                intent.getParcelableExtra<AccountDetails>(EXTRA_ACCOUNT)?.let { account ->
+                    if (it.contains(account.key)) {
+                        item.isChecked = true
+                    }
                 }
             }
         }
@@ -51,7 +52,7 @@ class AccountActionProvider(
 
     companion object {
 
-        val MENU_GROUP = 201
+        const val MENU_GROUP = 201
     }
 
 }

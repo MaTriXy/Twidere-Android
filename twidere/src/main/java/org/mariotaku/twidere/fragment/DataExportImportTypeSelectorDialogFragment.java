@@ -25,11 +25,12 @@ import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.content.DialogInterface.OnMultiChoiceClickListener;
 import android.content.DialogInterface.OnShowListener;
+import android.net.Uri;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.FragmentActivity;
-import android.support.v7.app.AlertDialog;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.FragmentActivity;
+import androidx.appcompat.app.AlertDialog;
 import android.util.SparseBooleanArray;
 import android.view.View;
 import android.view.ViewGroup;
@@ -65,12 +66,9 @@ public final class DataExportImportTypeSelectorDialogFragment extends BaseDialog
 
     @Override
     public final void onClick(final DialogInterface dialog, final int which) {
-        switch (which) {
-            case DialogInterface.BUTTON_POSITIVE: {
-                final int flags = getCheckedFlags();
-                onPositiveButtonClicked(flags);
-                break;
-            }
+        if (which == DialogInterface.BUTTON_POSITIVE) {
+            final int flags = getCheckedFlags();
+            onPositiveButtonClicked(flags);
         }
     }
 
@@ -157,7 +155,7 @@ public final class DataExportImportTypeSelectorDialogFragment extends BaseDialog
         final FragmentActivity a = getActivity();
         final Bundle args = getArguments();
         if (args == null) return;
-        final String path = args.getString(EXTRA_PATH);
+        final Uri path = args.getParcelable(EXTRA_PATH);
         if (a instanceof Callback) {
             ((Callback) a).onPositiveButtonClicked(path, flags);
         }
@@ -171,7 +169,7 @@ public final class DataExportImportTypeSelectorDialogFragment extends BaseDialog
     }
 
     public interface Callback extends ISupportDialogFragmentCallback {
-        void onPositiveButtonClicked(String path, int flags);
+        void onPositiveButtonClicked(Uri path, int flags);
     }
 
     private static class Type {

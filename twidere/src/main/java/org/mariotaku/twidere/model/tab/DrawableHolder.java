@@ -2,9 +2,9 @@ package org.mariotaku.twidere.model.tab;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.content.ContextCompat;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 
 import org.mariotaku.kpreferences.SharedPreferencesExtensionsKt;
 import org.mariotaku.twidere.R;
@@ -92,11 +92,7 @@ public abstract class DrawableHolder {
     }
 
     public static DrawableHolder parse(String str) {
-        DrawableHolder icon = builtin(str);
-        if (icon != null) {
-            return icon;
-        }
-        return null;
+        return builtin(str);
     }
 
     public static List<DrawableHolder> builtins() {

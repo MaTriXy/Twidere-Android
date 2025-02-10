@@ -25,14 +25,14 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
-import android.support.annotation.DrawableRes
-import android.support.annotation.XmlRes
-import android.support.v4.app.Fragment
-import android.support.v4.view.ViewCompat
-import android.support.v7.app.AlertDialog
-import android.support.v7.preference.Preference
-import android.support.v7.preference.PreferenceFragmentCompat
-import android.support.v7.preference.PreferenceFragmentCompat.OnPreferenceStartFragmentCallback
+import androidx.annotation.DrawableRes
+import androidx.annotation.XmlRes
+import androidx.fragment.app.Fragment
+import androidx.core.view.ViewCompat
+import androidx.appcompat.app.AlertDialog
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.PreferenceFragmentCompat.OnPreferenceStartFragmentCallback
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
@@ -54,6 +54,7 @@ import org.mariotaku.twidere.util.DeviceUtils
 import org.mariotaku.twidere.util.KeyboardShortcutsHandler
 import org.mariotaku.twidere.util.ThemeUtils
 import java.util.*
+import kotlin.system.exitProcess
 
 class SettingsActivity : BaseActivity(), OnItemClickListener, OnPreferenceStartFragmentCallback {
 
@@ -74,8 +75,7 @@ class SettingsActivity : BaseActivity(), OnItemClickListener, OnPreferenceStartF
             shouldTerminate = savedInstanceState.getBoolean(EXTRA_SHOULD_TERMINATE, shouldTerminate)
         } else if (intent.getBooleanExtra(EXTRA_SHOULD_TERMINATE, false)) {
             finishNoRestart()
-            System.exit(0)
-            return
+            exitProcess(0)
         }
 
         val backgroundOption = currentThemeBackgroundOption
@@ -164,10 +164,6 @@ class SettingsActivity : BaseActivity(), OnItemClickListener, OnPreferenceStartF
         return ACTION_NAVIGATION_BACK == action
     }
 
-    override fun handleKeyboardShortcutRepeat(handler: KeyboardShortcutsHandler, keyCode: Int, repeatCount: Int, event: KeyEvent, metaState: Int): Boolean {
-        return super.handleKeyboardShortcutRepeat(handler, keyCode, repeatCount, event, metaState)
-    }
-
     override fun onSupportNavigateUp(): Boolean {
         if (notifyUnsavedChange()) {
             return true
@@ -219,8 +215,6 @@ class SettingsActivity : BaseActivity(), OnItemClickListener, OnPreferenceStartF
                 ExtensionsListFragment::class.java)
         entriesAdapter.addPreference("refresh", R.drawable.ic_action_refresh, getString(R.string.action_refresh),
                 R.xml.preferences_refresh)
-        entriesAdapter.addPreference("streaming", R.drawable.ic_action_streaming, getString(R.string.settings_streaming),
-                R.xml.preferences_streaming)
         entriesAdapter.addPreference("notifications", R.drawable.ic_action_notification, getString(R.string.settings_notifications),
                 R.xml.preferences_notifications)
         entriesAdapter.addPreference("network", R.drawable.ic_action_web, getString(R.string.network),
@@ -293,7 +287,7 @@ class SettingsActivity : BaseActivity(), OnItemClickListener, OnPreferenceStartF
 
 
         fun addPreference(tag: String, @DrawableRes icon: Int, title: String, cls: Class<out Fragment>,
-                args: Bundle? = null) {
+                          args: Bundle? = null) {
             entries.add(PreferenceEntry(tag, icon, title, 0, cls.name, args))
             notifyDataSetChanged()
         }
@@ -355,8 +349,8 @@ class SettingsActivity : BaseActivity(), OnItemClickListener, OnPreferenceStartF
 
         companion object {
 
-            val VIEW_TYPE_PREFERENCE_ENTRY = 0
-            val VIEW_TYPE_HEADER_ENTRY = 1
+            const val VIEW_TYPE_PREFERENCE_ENTRY = 0
+            const val VIEW_TYPE_HEADER_ENTRY = 1
         }
     }
 
@@ -394,8 +388,8 @@ class SettingsActivity : BaseActivity(), OnItemClickListener, OnPreferenceStartF
 
     class RestartConfirmDialogFragment : BaseDialogFragment(), DialogInterface.OnClickListener {
         override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-            val builder = AlertDialog.Builder(activity)
-            if (arguments.getBoolean(EXTRA_SHOULD_TERMINATE)) {
+            val builder = AlertDialog.Builder(requireActivity())
+            if (arguments?.getBoolean(EXTRA_SHOULD_TERMINATE) == true) {
                 builder.setMessage(R.string.app_terminate_confirm)
                 builder.setNegativeButton(R.string.action_dont_terminate, this)
             } else {
@@ -412,7 +406,7 @@ class SettingsActivity : BaseActivity(), OnItemClickListener, OnPreferenceStartF
             val activity = activity as SettingsActivity
             when (which) {
                 DialogInterface.BUTTON_POSITIVE -> {
-                    if (arguments.getBoolean(EXTRA_SHOULD_TERMINATE)) {
+                    if (arguments?.getBoolean(EXTRA_SHOULD_TERMINATE) == true) {
                         val intent = Intent(context, SettingsActivity::class.java)
                         intent.putExtra(EXTRA_SHOULD_TERMINATE, true)
                         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -430,7 +424,7 @@ class SettingsActivity : BaseActivity(), OnItemClickListener, OnPreferenceStartF
 
     companion object {
 
-        private val RESULT_SETTINGS_CHANGED = 10
+        private const val RESULT_SETTINGS_CHANGED = 10
 
         fun setShouldRecreate(activity: Activity) {
             if (activity !is SettingsActivity) return

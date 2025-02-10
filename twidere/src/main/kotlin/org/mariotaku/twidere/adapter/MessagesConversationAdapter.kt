@@ -21,12 +21,13 @@ package org.mariotaku.twidere.adapter
 
 import android.content.Context
 import android.content.res.ColorStateList
-import android.support.v4.graphics.ColorUtils
-import android.support.v7.widget.RecyclerView
+import androidx.core.graphics.ColorUtils
+import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.bumptech.glide.RequestManager
+import org.apache.commons.lang3.time.DateUtils
 import org.mariotaku.chameleon.Chameleon
 import org.mariotaku.chameleon.ChameleonUtils
 import org.mariotaku.kpreferences.get
@@ -39,7 +40,6 @@ import org.mariotaku.twidere.constant.linkHighlightOptionKey
 import org.mariotaku.twidere.constant.mediaPreviewStyleKey
 import org.mariotaku.twidere.constant.nameFirstKey
 import org.mariotaku.twidere.exception.UnsupportedCountIndexException
-import org.mariotaku.twidere.extension.isSameDay
 import org.mariotaku.twidere.extension.model.timestamp
 import org.mariotaku.twidere.model.*
 import org.mariotaku.twidere.model.ParcelableMessage.MessageType
@@ -120,8 +120,7 @@ class MessagesConversationAdapter(
             }
             ITEM_LOAD_OLDER_INDICATOR -> {
                 val view = inflater.inflate(LoadIndicatorViewHolder.layoutResource, parent, false)
-                val holder = LoadIndicatorViewHolder(view)
-                return holder
+                return LoadIndicatorViewHolder(view)
             }
         }
         throw UnsupportedOperationException()
@@ -138,7 +137,7 @@ class MessagesConversationAdapter(
                         + itemCounts[ITEM_START_MESSAGE] - 1) {
                     calendars.first.timeInMillis = getMessageTimestamp(position + 1)
                     calendars.second.timeInMillis = message.timestamp
-                    showDate = !calendars.first.isSameDay(calendars.second)
+                    showDate = !DateUtils.isSameDay(calendars.first, calendars.second)
                 }
                 (holder as AbsMessageViewHolder).display(message, showDate)
             }
@@ -151,20 +150,19 @@ class MessagesConversationAdapter(
     }
 
     override fun getItemViewType(position: Int): Int {
-        val countIndex = itemCounts.getItemCountIndex(position)
-        when (countIndex) {
+        return when (val countIndex = itemCounts.getItemCountIndex(position)) {
             ITEM_START_MESSAGE -> when (getMessage(position, reuse = true).message_type) {
                 MessageType.STICKER -> {
-                    return ITEM_TYPE_STICKER_MESSAGE
+                    ITEM_TYPE_STICKER_MESSAGE
                 }
                 MessageType.CONVERSATION_CREATE, MessageType.JOIN_CONVERSATION,
                 MessageType.PARTICIPANTS_LEAVE, MessageType.PARTICIPANTS_JOIN,
                 MessageType.CONVERSATION_NAME_UPDATE, MessageType.CONVERSATION_AVATAR_UPDATE -> {
-                    return ITEM_TYPE_NOTICE_MESSAGE
+                    ITEM_TYPE_NOTICE_MESSAGE
                 }
-                else -> return ITEM_TYPE_TEXT_MESSAGE
+                else -> ITEM_TYPE_TEXT_MESSAGE
             }
-            ITEM_START_LOAD_OLDER -> return ITEM_LOAD_OLDER_INDICATOR
+            ITEM_START_LOAD_OLDER -> ITEM_LOAD_OLDER_INDICATOR
             else -> throw UnsupportedCountIndexException(countIndex, position)
         }
     }

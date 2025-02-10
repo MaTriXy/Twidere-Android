@@ -21,11 +21,11 @@ package org.mariotaku.twidere.fragment
 
 import android.content.Context
 import android.os.Bundle
-import android.support.v4.app.LoaderManager.LoaderCallbacks
-import android.support.v4.app.hasRunningLoadersSafe
-import android.support.v4.content.Loader
-import android.support.v7.widget.RecyclerView
+import androidx.loader.app.LoaderManager.LoaderCallbacks
+import androidx.loader.content.Loader
 import android.view.KeyEvent
+import androidx.loader.app.LoaderManager
+import androidx.loader.app.hasRunningLoadersSafe
 import com.bumptech.glide.RequestManager
 import kotlinx.android.synthetic.main.fragment_content_recyclerview.*
 import org.mariotaku.twidere.adapter.ParcelableGroupsAdapter
@@ -58,7 +58,7 @@ abstract class ParcelableGroupsFragment : AbsContentListRecyclerViewFragment<Par
     override var refreshing: Boolean
         get() {
             if (context == null || isDetached) return false
-            return loaderManager.hasRunningLoadersSafe()
+            return LoaderManager.getInstance(this).hasRunningLoadersSafe()
         }
         set(value) {
             super.refreshing = value
@@ -68,15 +68,11 @@ abstract class ParcelableGroupsFragment : AbsContentListRecyclerViewFragment<Par
         return ParcelableGroupsAdapter(context, this.requestManager)
     }
 
-    override fun setupRecyclerView(context: Context, recyclerView: RecyclerView) {
-        super.setupRecyclerView(context, recyclerView)
-    }
-
     protected val accountKey: UserKey?
-        get() = arguments.getParcelable<UserKey?>(EXTRA_ACCOUNT_KEY)
+        get() = arguments?.getParcelable<UserKey?>(EXTRA_ACCOUNT_KEY)
 
     protected fun hasMoreData(data: List<ParcelableGroup>?): Boolean {
-        return data == null || !data.isEmpty()
+        return data == null || data.isNotEmpty()
     }
 
     override fun onLoadFinished(loader: Loader<List<ParcelableGroup>?>, data: List<ParcelableGroup>?) {
@@ -106,7 +102,7 @@ abstract class ParcelableGroupsFragment : AbsContentListRecyclerViewFragment<Par
         val loaderArgs = Bundle(arguments)
         loaderArgs.putBoolean(EXTRA_FROM_USER, true)
         loaderArgs.putParcelable(EXTRA_PAGINATION, nextPagination)
-        loaderManager.restartLoader(0, loaderArgs, this)
+        LoaderManager.getInstance(this).restartLoader(0, loaderArgs, this)
     }
 
     override fun handleKeyboardShortcutSingle(handler: KeyboardShortcutsHandler, keyCode: Int, event: KeyEvent, metaState: Int): Boolean {
@@ -130,13 +126,13 @@ abstract class ParcelableGroupsFragment : AbsContentListRecyclerViewFragment<Par
                 this)
         val loaderArgs = Bundle(arguments)
         loaderArgs.putBoolean(EXTRA_FROM_USER, true)
-        loaderManager.initLoader(0, loaderArgs, this)
+        LoaderManager.getInstance(this).initLoader(0, loaderArgs, this)
     }
 
-    override fun onCreateLoader(id: Int, args: Bundle): Loader<List<ParcelableGroup>?> {
-        val fromUser = args.getBoolean(EXTRA_FROM_USER)
-        args.remove(EXTRA_FROM_USER)
-        return onCreateUserListsLoader(activity, args, fromUser)
+    override fun onCreateLoader(id: Int, args: Bundle?): Loader<List<ParcelableGroup>?> {
+        val fromUser = args?.getBoolean(EXTRA_FROM_USER)
+        args?.remove(EXTRA_FROM_USER)
+        return onCreateUserListsLoader(requireActivity(), args!!, fromUser!!)
     }
 
     override fun onLoaderReset(loader: Loader<List<ParcelableGroup>?>) {
@@ -146,7 +142,7 @@ abstract class ParcelableGroupsFragment : AbsContentListRecyclerViewFragment<Par
     }
 
     override fun onGroupClick(holder: GroupViewHolder, position: Int) {
-        IntentUtils.openGroupDetails(context, adapter.getGroup(position)!!)
+        context?.let { IntentUtils.openGroupDetails(it, adapter.getGroup(position)!!) }
     }
 
     override fun onGroupLongClick(holder: GroupViewHolder, position: Int): Boolean {

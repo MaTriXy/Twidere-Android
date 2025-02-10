@@ -20,7 +20,7 @@
 package org.mariotaku.twidere.util
 
 import android.accounts.AccountManager
-import android.support.test.InstrumentationRegistry
+import androidx.test.platform.app.InstrumentationRegistry
 import org.mariotaku.twidere.extension.model.updateDetails
 import org.mariotaku.twidere.model.AccountDetails
 import org.mariotaku.twidere.model.util.AccountUtils
@@ -35,8 +35,8 @@ object TestAccountUtils {
     private val accountResources = intArrayOf(R.raw.account_4223092274_twitter_com)
 
     fun insertTestAccounts() {
-        val targetContext = InstrumentationRegistry.getTargetContext()
-        val context = InstrumentationRegistry.getContext()
+        val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().context
         val am = AccountManager.get(targetContext)
         val existingAccounts = AccountUtils.getAllAccountDetails(am, false)
         accountResources.forEach { resId ->
@@ -52,7 +52,7 @@ object TestAccountUtils {
     }
 
     fun removeTestAccounts() {
-        val targetContext = InstrumentationRegistry.getTargetContext()
+        val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
         val am = AccountManager.get(targetContext)
         val existingAccounts = AccountUtils.getAllAccountDetails(am, false)
         existingAccounts.filter { it.test }.forEach { am.removeAccountSupport(it.account) }

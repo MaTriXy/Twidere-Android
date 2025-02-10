@@ -7,7 +7,6 @@ import android.os.Build
 import android.util.Base64
 import android.util.Log
 import okhttp3.*
-import okhttp3.internal.platform.Platform
 import org.mariotaku.kpreferences.get
 import org.mariotaku.ktextension.toIntOr
 import org.mariotaku.restfu.http.RestHttpClient
@@ -15,7 +14,6 @@ import org.mariotaku.restfu.okhttp3.OkHttpRestClient
 import org.mariotaku.twidere.constant.SharedPreferenceConstants.*
 import org.mariotaku.twidere.constant.cacheSizeLimitKey
 import org.mariotaku.twidere.util.dagger.DependencyHolder
-import org.mariotaku.twidere.util.net.TLSSocketFactory
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Proxy
@@ -31,7 +29,6 @@ import javax.net.ssl.X509TrustManager
  * Created by mariotaku on 16/1/27.
  */
 object HttpClientFactory {
-
     fun createRestHttpClient(conf: HttpClientConfiguration, dns: Dns, connectionPool: ConnectionPool,
             cache: Cache): RestHttpClient {
         val builder = OkHttpClient.Builder()
@@ -42,11 +39,9 @@ object HttpClientFactory {
     fun initOkHttpClient(conf: HttpClientConfiguration, builder: OkHttpClient.Builder, dns: Dns,
             connectionPool: ConnectionPool, cache: Cache) {
         updateHttpClientConfiguration(builder, conf, dns, connectionPool, cache)
-        if (Build.VERSION.SDK_INT in Build.VERSION_CODES.JELLY_BEAN until Build.VERSION_CODES.LOLLIPOP) {
-            val tlsSocketFactory = TLSSocketFactory()
-            val trustManager = Platform.get().trustManager(tlsSocketFactory) ?:
-                    systemDefaultTrustManager()
-            builder.sslSocketFactory(tlsSocketFactory, trustManager)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            val tlsTocketFactory = TLSSocketFactory()
+            builder.sslSocketFactory(tlsTocketFactory, tlsTocketFactory.trustManager)
         }
         updateTLSConnectionSpecs(builder)
         DebugModeUtils.initForOkHttpClient(builder)
@@ -108,9 +103,9 @@ object HttpClientFactory {
                 "[HOST]" -> url.host()
                 "[PORT]" -> url.port()
                 "[AUTHORITY]" -> url.authority()
-                "[PATH]" -> url.encodedPath()?.removePrefix("/").orEmpty()
+                "[PATH]" -> url.encodedPath().removePrefix("/")
                 "[/PATH]" -> url.encodedPath().orEmpty()
-                "[PATH_ENCODED]" -> url.encodedPath()?.removePrefix("/")?.urlEncoded()
+                "[PATH_ENCODED]" -> url.encodedPath().removePrefix("/").urlEncoded()
                 "[QUERY]" -> url.encodedQuery().orEmpty()
                 "[?QUERY]" -> url.encodedQuery()?.prefix("?").orEmpty()
                 "[QUERY_ENCODED]" -> url.encodedQuery()?.urlEncoded()
@@ -195,8 +190,8 @@ object HttpClientFactory {
 
     class HttpClientConfiguration(val prefs: SharedPreferences) {
 
-        var readTimeoutSecs: Long = -1
-        var writeTimeoutSecs: Long = -1
+        var readTimeoutSecs: Long = prefs.getInt(KEY_CONNECTION_TIMEOUT, 10).toLong()
+        var writeTimeoutSecs: Long = prefs.getInt(KEY_CONNECTION_TIMEOUT, 10).toLong()
         var connectionTimeoutSecs: Long = prefs.getInt(KEY_CONNECTION_TIMEOUT, 10).toLong()
         var cacheSize: Int = prefs[cacheSizeLimitKey]
 
@@ -228,7 +223,16 @@ object HttpClientFactory {
                     }
                     val address = InetSocketAddress.createUnresolved(proxyHost, proxyPort)
                     builder.proxy(Proxy(Proxy.Type.HTTP, address))
-
+                    builder.proxyAuthenticator { _, response ->
+                        val b = response.request().newBuilder()
+                        if (response.code() == 407) {
+                        if (username != null && password != null) {
+                            val credential = Credentials.basic(username, password)
+                            b.header("Proxy-Authorization", credential)
+                        }
+                        }
+                        b.build()
+                    }
                     builder.authenticator { _, response ->
                         val b = response.request().newBuilder()
                         if (response.code() == 407) {

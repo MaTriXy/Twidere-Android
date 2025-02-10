@@ -1,18 +1,18 @@
 /*
  * 				Twidere - Twitter client for Android
- * 
+ *
  *  Copyright (C) 2012-2014 Mariotaku Lee <mariotaku.lee@gmail.com>
- * 
+ *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
- * 
+ *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- * 
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -32,10 +32,11 @@ import android.database.sqlite.SQLiteOpenHelper
 import android.net.ConnectivityManager
 import android.os.AsyncTask
 import android.os.Looper
-import android.support.multidex.MultiDex
+import androidx.multidex.MultiDex
 import com.bumptech.glide.Glide
 import nl.komponents.kovenant.task
 import okhttp3.Dns
+import org.apache.commons.lang3.concurrent.ConcurrentUtils
 import org.mariotaku.abstask.library.TaskStarter
 import org.mariotaku.commons.logansquare.LoganSquareMapperFinder
 import org.mariotaku.kpreferences.KPreferences
@@ -58,9 +59,7 @@ import org.mariotaku.twidere.extension.model.save
 import org.mariotaku.twidere.extension.setLocale
 import org.mariotaku.twidere.model.DefaultFeatures
 import org.mariotaku.twidere.receiver.ConnectivityStateReceiver
-import org.mariotaku.twidere.service.StreamingService
 import org.mariotaku.twidere.util.*
-import org.mariotaku.twidere.util.concurrent.ConstantFuture
 import org.mariotaku.twidere.util.content.TwidereSQLiteOpenHelper
 import org.mariotaku.twidere.util.dagger.ApplicationModule
 import org.mariotaku.twidere.util.dagger.GeneralComponent
@@ -87,33 +86,33 @@ import javax.inject.Inject
 class TwidereApplication : Application(), OnSharedPreferenceChangeListener {
 
     @Inject
-    lateinit internal var activityTracker: ActivityTracker
+    internal lateinit var activityTracker: ActivityTracker
     @Inject
-    lateinit internal var restHttpClient: RestHttpClient
+    internal lateinit var restHttpClient: RestHttpClient
     @Inject
-    lateinit internal var dns: Dns
+    internal lateinit var dns: Dns
     @Inject
-    lateinit internal var mediaDownloader: MediaDownloader
+    internal lateinit var mediaDownloader: MediaDownloader
     @Inject
-    lateinit internal var defaultFeatures: DefaultFeatures
+    internal lateinit var defaultFeatures: DefaultFeatures
     @Inject
-    lateinit internal var externalThemeManager: ExternalThemeManager
+    internal lateinit var externalThemeManager: ExternalThemeManager
     @Inject
-    lateinit internal var kPreferences: KPreferences
+    internal lateinit var kPreferences: KPreferences
     @Inject
-    lateinit internal var autoRefreshController: AutoRefreshController
+    internal lateinit var autoRefreshController: AutoRefreshController
     @Inject
-    lateinit internal var syncController: SyncController
+    internal lateinit var syncController: SyncController
     @Inject
-    lateinit internal var extraFeaturesService: ExtraFeaturesService
+    internal lateinit var extraFeaturesService: ExtraFeaturesService
     @Inject
-    lateinit internal var promotionService: PromotionService
+    internal lateinit var promotionService: PromotionService
     @Inject
-    lateinit internal var mediaPreloader: MediaPreloader
+    internal lateinit var mediaPreloader: MediaPreloader
     @Inject
-    lateinit internal var contentNotificationManager: ContentNotificationManager
+    internal lateinit var contentNotificationManager: ContentNotificationManager
     @Inject
-    lateinit internal var thumbor: ThumborWrapper
+    internal lateinit var thumbor: ThumborWrapper
 
     val sqLiteDatabase: SQLiteDatabase by lazy {
         StrictModeUtils.checkDiskIO()
@@ -177,7 +176,7 @@ class TwidereApplication : Application(), OnSharedPreferenceChangeListener {
         }, updateImmediately = true)
     }
 
-    override fun onConfigurationChanged(newConfig: Configuration?) {
+    override fun onConfigurationChanged(newConfig: Configuration) {
         applyLanguageSettings()
         super.onConfigurationChanged(newConfig)
     }
@@ -219,15 +218,6 @@ class TwidereApplication : Application(), OnSharedPreferenceChangeListener {
             }
             KEY_NAME_FIRST, KEY_I_WANT_MY_STARS_BACK -> {
                 contentNotificationManager.updatePreferences()
-            }
-            streamingEnabledKey.key, streamingPowerSavingKey.key,
-            streamingNonMeteredNetworkKey.key -> {
-                val streamingIntent = Intent(this, StreamingService::class.java)
-                if (activityTracker.isHomeActivityLaunched) {
-                    startService(streamingIntent)
-                } else {
-                    stopService(streamingIntent)
-                }
             }
             KEY_OVERRIDE_LANGUAGE -> {
                 applyLanguageSettings()
@@ -273,7 +263,7 @@ class TwidereApplication : Application(), OnSharedPreferenceChangeListener {
         registerReceiver(object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 val uid = intent.getIntExtra(Intent.EXTRA_UID, -1)
-                val packages = packageManager.getPackagesForUid(uid)
+                val packages = packageManager.getPackagesForUid(uid).orEmpty()
                 val manager = externalThemeManager
                 if (manager.emojiPackageName in packages) {
                     manager.reloadEmojiPreferences()
@@ -330,7 +320,7 @@ class TwidereApplication : Application(), OnSharedPreferenceChangeListener {
         LoganSquareMapperFinder.setDefaultExecutor(object : LoganSquareMapperFinder.FutureExecutor {
             override fun <T> submit(callable: Callable<T>): Future<T> {
                 if (Looper.getMainLooper().isCurrentThreadCompat) {
-                    return ConstantFuture(callable.call())
+                    return ConcurrentUtils.constantFuture(callable.call())
                 }
                 return executor.submit(callable)
             }
@@ -339,7 +329,7 @@ class TwidereApplication : Application(), OnSharedPreferenceChangeListener {
 
     companion object {
 
-        private val KEY_KEYBOARD_SHORTCUT_INITIALIZED = "keyboard_shortcut_initialized"
+        private const val KEY_KEYBOARD_SHORTCUT_INITIALIZED = "keyboard_shortcut_initialized"
         var instance: TwidereApplication? = null
             private set
 

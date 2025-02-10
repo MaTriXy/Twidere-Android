@@ -23,12 +23,13 @@ import android.content.Context
 import android.content.Intent
 import android.database.Cursor
 import android.os.Bundle
-import android.support.v4.app.LoaderManager.LoaderCallbacks
-import android.support.v4.content.CursorLoader
-import android.support.v4.content.Loader
+import androidx.loader.app.LoaderManager.LoaderCallbacks
+import androidx.loader.content.CursorLoader
+import androidx.loader.content.Loader
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ListView
+import androidx.loader.app.LoaderManager
 import com.bumptech.glide.RequestManager
 import com.squareup.otto.Subscribe
 import kotlinx.android.synthetic.main.fragment_content_listview.*
@@ -53,11 +54,11 @@ class TrendsSuggestionsFragment : AbsContentListViewFragment<TrendsAdapter>(), L
         AdapterView.OnItemClickListener, IFloatingActionButtonFragment {
 
     private val tabExtras: TrendsTabExtras?
-        get() = arguments.getParcelable(EXTRA_EXTRAS)
+        get() = arguments?.getParcelable(EXTRA_EXTRAS)
 
     private val accountKey: UserKey? get() {
-        return Utils.getAccountKeys(context, arguments)?.firstOrNull()
-                ?: Utils.getDefaultAccountKey(context)
+        return context?.let { Utils.getAccountKeys(it, arguments)?.firstOrNull() }
+                ?: context?.let { Utils.getDefaultAccountKey(it) }
     }
 
     private val woeId: Int get() {
@@ -68,12 +69,12 @@ class TrendsSuggestionsFragment : AbsContentListViewFragment<TrendsAdapter>(), L
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
         listView.onItemClickListener = this
-        loaderManager.initLoader(0, null, this)
+        LoaderManager.getInstance(this).initLoader(0, null, this)
         showProgress()
     }
 
     override fun onCreateAdapter(context: Context, requestManager: RequestManager): TrendsAdapter {
-        return TrendsAdapter(activity)
+        return TrendsAdapter(requireActivity())
     }
 
     override fun onCreateLoader(id: Int, args: Bundle?): Loader<Cursor> {
@@ -81,20 +82,19 @@ class TrendsSuggestionsFragment : AbsContentListViewFragment<TrendsAdapter>(), L
         val loaderWhere = Expression.and(Expression.equalsArgs(CachedTrends.ACCOUNT_KEY),
                 Expression.equalsArgs(CachedTrends.WOEID)).sql
         val loaderWhereArgs = arrayOf(accountKey?.toString().orEmpty(), woeId.toString())
-        return CursorLoader(activity, uri, CachedTrends.COLUMNS, loaderWhere, loaderWhereArgs, CachedTrends.TREND_ORDER)
+        return CursorLoader(requireActivity(), uri, CachedTrends.COLUMNS, loaderWhere, loaderWhereArgs, CachedTrends.TREND_ORDER)
     }
 
     override fun onItemClick(view: AdapterView<*>, child: View, position: Int, id: Long) {
         if (multiSelectManager.isActive) return
-        val trend: String?
-        if (view is ListView) {
-            trend = adapter.getItem(position - view.headerViewsCount)
+        val trend: String = (if (view is ListView) {
+            adapter.getItem(position - view.headerViewsCount)
         } else {
-            trend = adapter.getItem(position)
+            adapter.getItem(position)
 
-        }
-        if (trend == null) return
-        openTweetSearch(activity, accountKey, trend)
+        })
+            ?: return
+        activity?.let { openTweetSearch(it, accountKey, trend) }
     }
 
     override fun onLoaderReset(loader: Loader<Cursor>) {
@@ -124,7 +124,7 @@ class TrendsSuggestionsFragment : AbsContentListViewFragment<TrendsAdapter>(), L
 
     override fun onStart() {
         super.onStart()
-        loaderManager.restartLoader(0, null, this)
+        LoaderManager.getInstance(this).restartLoader(0, null, this)
         bus.register(this)
     }
 

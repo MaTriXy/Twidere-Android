@@ -17,7 +17,7 @@
 package org.mariotaku.twidere.adapter;
 
 import android.content.Context;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -101,7 +101,7 @@ public class ArrayAdapter<T> extends BaseAdapter implements Filterable {
      *                 instantiating views.
      */
     public ArrayAdapter(Context context, int resource) {
-        init(context, resource, new ArrayList<T>());
+        init(context, resource, new ArrayList<>());
     }
 
     /**

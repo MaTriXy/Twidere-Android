@@ -22,8 +22,8 @@ package org.mariotaku.twidere.util.content;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.net.Uri;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import org.mariotaku.sqliteqb.library.Expression;
@@ -81,7 +81,7 @@ public class ContentResolverUtils {
 
     public static int bulkInsert(@NonNull final ContentResolver resolver, @NonNull final Uri uri,
             @NonNull final Collection<ContentValues> values) {
-        return bulkInsert(resolver, uri, values.toArray(new ContentValues[values.size()]));
+        return bulkInsert(resolver, uri, values.toArray(new ContentValues[0]));
     }
 
     public static int bulkInsert(@NonNull final ContentResolver resolver, @NonNull final Uri uri,

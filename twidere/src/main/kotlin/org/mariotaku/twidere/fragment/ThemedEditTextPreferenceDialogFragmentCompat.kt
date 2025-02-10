@@ -17,8 +17,8 @@ package org.mariotaku.twidere.fragment
 
 import android.content.Context
 import android.os.Bundle
-import android.support.v7.preference.EditTextPreference
-import android.support.v7.preference.PreferenceDialogFragmentCompat
+import androidx.preference.EditTextPreference
+import androidx.preference.PreferenceDialogFragmentCompat
 import android.view.View
 import android.widget.EditText
 
@@ -64,7 +64,7 @@ class ThemedEditTextPreferenceDialogFragmentCompat : ThemedPreferenceDialogFragm
         fun newInstance(key: String): ThemedEditTextPreferenceDialogFragmentCompat {
             val fragment = ThemedEditTextPreferenceDialogFragmentCompat()
             val args = Bundle()
-            args.putString(PreferenceDialogFragmentCompat.ARG_KEY, key)
+            args.putString(ARG_KEY, key)
             fragment.arguments = args
             return fragment
         }

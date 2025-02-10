@@ -20,8 +20,8 @@
 package org.mariotaku.twidere.view.holder
 
 import android.graphics.PorterDuff
-import android.support.v4.view.MarginLayoutParamsCompat
-import android.support.v7.widget.RecyclerView.ViewHolder
+import androidx.core.view.MarginLayoutParamsCompat
+import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import android.view.View
 import android.view.ViewGroup
 import kotlinx.android.synthetic.main.list_item_activity_summary_compact.view.*
@@ -34,6 +34,7 @@ import org.mariotaku.twidere.extension.loadProfileImage
 import org.mariotaku.twidere.model.ActivityTitleSummaryMessage
 import org.mariotaku.twidere.model.ParcelableActivity
 import org.mariotaku.twidere.model.ParcelableLiteUser
+import kotlin.math.min
 
 /**
  * Created by mariotaku on 15/1/3.
@@ -128,8 +129,8 @@ class ActivityTitleSummaryViewHolder(
             }
             return
         }
-        val length = Math.min(profileImageViews.size, users.size)
-        for (i in 0 until profileImageViews.size) {
+        val length = min(profileImageViews.size, users.size)
+        for (i in profileImageViews.indices) {
             val view = profileImageViews[i]
             view.setImageDrawable(null)
             if (i < length) {

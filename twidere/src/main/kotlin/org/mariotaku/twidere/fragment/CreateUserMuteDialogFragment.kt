@@ -20,7 +20,7 @@
 package org.mariotaku.twidere.fragment
 
 import android.os.Bundle
-import android.support.v4.app.FragmentManager
+import androidx.fragment.app.FragmentManager
 import org.mariotaku.twidere.R
 import org.mariotaku.twidere.constant.IntentConstants.EXTRA_USER
 import org.mariotaku.twidere.constant.nameFirstKey
@@ -49,7 +49,7 @@ class CreateUserMuteDialogFragment : AbsUserMuteBlockDialogFragment() {
 
     companion object {
 
-        val FRAGMENT_TAG = "create_user_mute"
+        const val FRAGMENT_TAG = "create_user_mute"
 
         fun show(fm: FragmentManager, user: ParcelableUser): CreateUserMuteDialogFragment {
             val args = Bundle()

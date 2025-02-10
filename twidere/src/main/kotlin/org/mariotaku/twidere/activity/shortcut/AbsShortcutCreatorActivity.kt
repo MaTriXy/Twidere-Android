@@ -22,8 +22,8 @@ package org.mariotaku.twidere.activity.shortcut
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.support.v4.content.pm.ShortcutInfoCompat
-import android.support.v4.content.pm.ShortcutManagerCompat
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
 import nl.komponents.kovenant.Promise
 import nl.komponents.kovenant.combine.and
 import nl.komponents.kovenant.ui.alwaysUi
@@ -46,6 +46,7 @@ abstract class AbsShortcutCreatorActivity : BaseActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
             REQUEST_SELECT_ACCOUNT -> {
                 if (resultCode != Activity.RESULT_OK || data == null) {

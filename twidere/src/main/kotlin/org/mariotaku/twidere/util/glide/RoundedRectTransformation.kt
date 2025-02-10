@@ -26,6 +26,8 @@ import com.bumptech.glide.load.Transformation
 import com.bumptech.glide.load.engine.Resource
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool
 import com.bumptech.glide.load.resource.bitmap.BitmapResource
+import java.security.MessageDigest
+
 
 class RoundedRectTransformation(
         private val bitmapPool: BitmapPool,
@@ -37,14 +39,13 @@ class RoundedRectTransformation(
     constructor(context: Context, radius: Float, radiusPercent: Float) :
             this(Glide.get(context).bitmapPool, radius, radiusPercent)
 
-    override fun transform(resource: Resource<Bitmap>, outWidth: Int, outHeight: Int): Resource<Bitmap> {
+    override fun transform(context: Context, resource: Resource<Bitmap>, outWidth: Int, outHeight: Int): Resource<Bitmap> {
         val source = resource.get()
 
         val width = source.width
         val height = source.height
 
         val bitmap = bitmapPool.get(width, height, Bitmap.Config.ARGB_8888)
-                ?: Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
 
         val canvas = Canvas(bitmap)
         val paint = Paint()
@@ -59,14 +60,26 @@ class RoundedRectTransformation(
             radius
         }
         drawRoundRect(canvas, calculatedRadius, paint)
-        return BitmapResource.obtain(bitmap, bitmapPool)
+        return BitmapResource.obtain(bitmap, bitmapPool)!!
     }
 
     private fun drawRoundRect(canvas: Canvas, radius: Float, paint: Paint) {
         canvas.drawRoundRect(rectF, radius, radius, paint)
     }
 
-    override fun getId(): String {
+    fun getId(): String {
         return "RoundedRectTransformation(radius=$radius, radiusPercent=$radius)"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        return other is RoundedRectTransformation
+    }
+
+    override fun hashCode(): Int {
+        return getId().hashCode()
+    }
+
+    override fun updateDiskCacheKey(messageDigest: MessageDigest) {
+        messageDigest.update(getId().toByteArray())
     }
 }

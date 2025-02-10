@@ -21,9 +21,10 @@ package org.mariotaku.twidere.fragment
 
 import android.content.Context
 import android.os.Bundle
-import android.support.v4.app.hasRunningLoadersSafe
-import android.support.v4.content.Loader
+import androidx.loader.app.hasRunningLoadersSafe
+import androidx.loader.content.Loader
 import android.text.TextUtils
+import androidx.loader.app.LoaderManager
 import com.bumptech.glide.RequestManager
 import com.squareup.otto.Subscribe
 import org.mariotaku.twidere.R
@@ -46,6 +47,8 @@ import org.mariotaku.twidere.model.pagination.Pagination
 import org.mariotaku.twidere.model.pagination.SinceMaxPagination
 import org.mariotaku.twidere.util.Utils
 import java.util.*
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Created by mariotaku on 14/12/3.
@@ -55,7 +58,7 @@ abstract class ParcelableStatusesFragment : AbsStatusesFragment() {
     override var refreshing: Boolean
         get() {
             if (context == null || isDetached) return false
-            return loaderManager.hasRunningLoadersSafe()
+            return LoaderManager.getInstance(this).hasRunningLoadersSafe()
         }
         set(value) {
             super.refreshing = value
@@ -66,7 +69,7 @@ abstract class ParcelableStatusesFragment : AbsStatusesFragment() {
 
 
     override val accountKeys: Array<UserKey>
-        get() = Utils.getAccountKeys(context, arguments) ?: emptyArray()
+        get() = context?.let { Utils.getAccountKeys(it, arguments) } ?: emptyArray()
 
     private var lastId: String? = null
     private var nextPagination: Pagination? = null
@@ -93,10 +96,10 @@ abstract class ParcelableStatusesFragment : AbsStatusesFragment() {
         outState.putParcelable(EXTRA_NEXT_PAGINATION, nextPagination)
     }
 
-    override fun onCreateLoader(id: Int, args: Bundle): Loader<List<ParcelableStatus>?> {
+    override fun onCreateLoader(id: Int, args: Bundle?): Loader<List<ParcelableStatus>?> {
         val loader = super.onCreateLoader(id, args)
         if (loader is AbsRequestStatusesLoader) {
-            loader.pagination = args.getParcelable(EXTRA_PAGINATION)
+            loader.pagination = args?.getParcelable(EXTRA_PAGINATION)
         }
         return loader
     }
@@ -111,12 +114,12 @@ abstract class ParcelableStatusesFragment : AbsStatusesFragment() {
         args.putBoolean(EXTRA_LOADING_MORE, param.isLoadingMore)
         args.putBoolean(EXTRA_FROM_USER, true)
         args.putParcelable(EXTRA_PAGINATION, param.pagination?.getOrNull(0))
-        loaderManager.restartLoader(loaderId, args, this)
+        LoaderManager.getInstance(this).restartLoader(loaderId, args, this)
         return true
     }
 
     override fun hasMoreData(loader: Loader<List<ParcelableStatus>?>,
-            data: List<ParcelableStatus>?): Boolean {
+                             data: List<ParcelableStatus>?): Boolean {
         if (data == null || data.isEmpty()) return false
         if (loader is IPaginationLoader) {
             return loader.nextPagination != null
@@ -141,7 +144,9 @@ abstract class ParcelableStatusesFragment : AbsStatusesFragment() {
         } else if (loader is AbsRequestStatusesLoader) {
             val e = loader.exception
             if (e != null) {
-                showError(R.drawable.ic_info_error_generic, e.getErrorMessage(context))
+                context ?.let {
+                    showError(R.drawable.ic_info_error_generic, e.getErrorMessage(it))
+                }
             } else {
                 showEmpty(R.drawable.ic_info_refresh, getString(R.string.swipe_down_to_refresh))
             }
@@ -191,13 +196,12 @@ abstract class ParcelableStatusesFragment : AbsStatusesFragment() {
     fun removeStatus(statusId: String) {
         val list = adapterData ?: return
         val dataToRemove = HashSet<ParcelableStatus>()
-        for (i in 0 until list.size) {
-            val status = list[i]
-            if (status.id == statusId || status.retweet_id == statusId) {
-                dataToRemove.add(status)
-            } else if (status.my_retweet_id == statusId) {
-                status.my_retweet_id = null
-                status.retweet_count = status.retweet_count - 1
+        for (element in list) {
+            if (element.id == statusId || element.retweet_id == statusId) {
+                dataToRemove.add(element)
+            } else if (element.my_retweet_id == statusId) {
+                element.my_retweet_id = null
+                element.retweet_count = element.retweet_count - 1
             }
         }
         if (list is MutableList) {
@@ -209,8 +213,8 @@ abstract class ParcelableStatusesFragment : AbsStatusesFragment() {
     fun replaceStatusStates(status: ParcelableStatus?) {
         if (status == null) return
         val lm = layoutManager
-        val rangeStart = Math.max(adapter.statusStartIndex, lm.findFirstVisibleItemPosition())
-        val rangeEnd = Math.min(lm.findLastVisibleItemPosition(), adapter.statusStartIndex + adapter.getStatusCount(false) - 1)
+        val rangeStart = max(adapter.statusStartIndex, lm.findFirstVisibleItemPosition())
+        val rangeEnd = min(lm.findLastVisibleItemPosition(), adapter.statusStartIndex + adapter.getStatusCount(false) - 1)
         for (i in rangeStart..rangeEnd) {
             val item = adapter.getStatus(i, false)
             if (status == item) {
@@ -230,7 +234,7 @@ abstract class ParcelableStatusesFragment : AbsStatusesFragment() {
 
     private fun updateRetweetedStatuses(status: ParcelableStatus?) {
         val data = adapterData
-        if (status == null || status.retweet_id == null || data == null) return
+        if (status?.retweet_id == null || data == null) return
         data.forEach { orig ->
             if (orig.account_key == status.account_key && TextUtils.equals(orig.id, status.retweet_id)) {
                 orig.my_retweet_id = status.my_retweet_id

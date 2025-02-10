@@ -19,7 +19,7 @@
 
 package org.mariotaku.twidere.adapter.iface
 
-import android.support.annotation.IntDef
+import androidx.annotation.LongDef
 
 /**
  * Created by mariotaku on 15/4/16.
@@ -32,11 +32,11 @@ interface ILoadMoreSupportAdapter {
     var loadMoreSupportedPosition: Long
         @IndicatorPosition get @IndicatorPosition set
 
-    @IntDef(flag = true, value = *longArrayOf(NONE, START, END, BOTH))
+    @LongDef(flag = true, value = [NONE, START, END, BOTH])
     annotation class IndicatorPosition
 
     companion object {
-        val ITEM_VIEW_TYPE_LOAD_INDICATOR = 0
+        const val ITEM_VIEW_TYPE_LOAD_INDICATOR = 0
 
         const val NONE: Long = 0
         const val START: Long = 1

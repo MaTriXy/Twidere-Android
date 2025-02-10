@@ -25,16 +25,17 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.os.Bundle
-import android.support.annotation.WorkerThread
-import android.support.v4.app.LoaderManager.LoaderCallbacks
-import android.support.v4.content.Loader
-import android.support.v7.widget.LinearLayoutManager
 import android.text.Editable
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.TextUtils
 import android.text.style.ReplacementSpan
 import android.view.*
+import androidx.annotation.WorkerThread
+import androidx.loader.app.LoaderManager
+import androidx.loader.app.LoaderManager.LoaderCallbacks
+import androidx.loader.content.Loader
+import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.android.synthetic.main.fragment_messages_conversation_new.*
 import org.mariotaku.kpreferences.get
 import org.mariotaku.ktextension.*
@@ -49,6 +50,7 @@ import org.mariotaku.twidere.extension.queryOne
 import org.mariotaku.twidere.extension.text.appendCompat
 import org.mariotaku.twidere.fragment.BaseFragment
 import org.mariotaku.twidere.loader.CacheUserSearchLoader
+import org.mariotaku.twidere.model.AccountDetails
 import org.mariotaku.twidere.model.ParcelableMessageConversation
 import org.mariotaku.twidere.model.ParcelableMessageConversation.ConversationType
 import org.mariotaku.twidere.model.ParcelableUser
@@ -60,15 +62,16 @@ import org.mariotaku.twidere.text.MarkForDeleteSpan
 import org.mariotaku.twidere.util.IntentUtils
 import org.mariotaku.twidere.util.view.SimpleTextWatcher
 import java.lang.ref.WeakReference
+import kotlin.math.roundToInt
 
 /**
  * Created by mariotaku on 2017/2/15.
  */
 class MessageNewConversationFragment : BaseFragment(), LoaderCallbacks<List<ParcelableUser>?> {
 
-    private val accountKey by lazy { arguments.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY) }
-    private val account by lazy {
-        AccountUtils.getAccountDetails(AccountManager.get(context), accountKey, true)
+    private val accountKey: UserKey by lazy { arguments?.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY)!! }
+    private val account: AccountDetails by lazy {
+        AccountUtils.getAccountDetails(AccountManager.get(context), accountKey, true)!!
     }
 
     private var selectedRecipients: List<ParcelableUser>
@@ -97,6 +100,7 @@ class MessageNewConversationFragment : BaseFragment(), LoaderCallbacks<List<Parc
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
+        val context = context ?: return
         setHasOptionsMenu(true)
         usersAdapter = SelectableUsersAdapter(context, requestManager)
         recyclerView.adapter = usersAdapter
@@ -110,10 +114,6 @@ class MessageNewConversationFragment : BaseFragment(), LoaderCallbacks<List<Parc
                     s.removeSpan(span)
                     s.delete(deleteStart, deleteEnd)
                 }
-            }
-
-            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
-                super.beforeTextChanged(s, start, count, after)
             }
 
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
@@ -188,12 +188,14 @@ class MessageNewConversationFragment : BaseFragment(), LoaderCallbacks<List<Parc
         }
 
         if (savedInstanceState == null) {
-            val users = arguments.getNullableTypedArray<ParcelableUser>(EXTRA_USERS)
-            if (users != null && users.isNotEmpty()) {
-                selectedRecipients = users.toList()
-                editParticipants.setSelection(editParticipants.length())
-                if (arguments.getBoolean(EXTRA_OPEN_CONVERSATION)) {
-                    createOrOpenConversation()
+            arguments?.let {
+                val users = it.getNullableTypedArray<ParcelableUser>(EXTRA_USERS)
+                if (users != null && users.isNotEmpty()) {
+                    selectedRecipients = users.toList()
+                    editParticipants.setSelection(editParticipants.length())
+                    if (it.getBoolean(EXTRA_OPEN_CONVERSATION)) {
+                        createOrOpenConversation()
+                    }
                 }
             }
         }
@@ -203,11 +205,11 @@ class MessageNewConversationFragment : BaseFragment(), LoaderCallbacks<List<Parc
         return inflater.inflate(R.layout.fragment_messages_conversation_new, container, false)
     }
 
-    override fun onCreateLoader(id: Int, args: Bundle): Loader<List<ParcelableUser>?> {
-        val query = args.getString(EXTRA_QUERY)
+    override fun onCreateLoader(id: Int, args: Bundle?): Loader<List<ParcelableUser>?> {
+        val query = args!!.getString(EXTRA_QUERY)!!
         val fromCache = args.getBoolean(EXTRA_FROM_CACHE)
         val fromUser = args.getBoolean(EXTRA_FROM_USER)
-        return CacheUserSearchLoader(context, accountKey, query, !fromCache, true, fromUser)
+        return CacheUserSearchLoader(requireContext(), accountKey, query, !fromCache, true, fromUser)
     }
 
     override fun onLoaderReset(loader: Loader<List<ParcelableUser>?>) {
@@ -238,7 +240,9 @@ class MessageNewConversationFragment : BaseFragment(), LoaderCallbacks<List<Parc
     }
 
     private fun createOrOpenConversation() {
-        val account = this.account ?: return
+        val account = this.account
+        val context = context ?: return
+        val activity = activity ?: return
         val selected = this.selectedRecipients
         if (selected.isEmpty()) return
         val maxParticipants = if (account.isOfficial(context)) {
@@ -302,10 +306,10 @@ class MessageNewConversationFragment : BaseFragment(), LoaderCallbacks<List<Parc
             this[EXTRA_FROM_CACHE] = fromType
         }
         if (loaderInitialized) {
-            loaderManager.initLoader(0, args, this)
+            LoaderManager.getInstance(this).initLoader(0, args, this)
             loaderInitialized = true
         } else {
-            loaderManager.restartLoader(0, args, this)
+            LoaderManager.getInstance(this).restartLoader(0, args, this)
         }
         if (performSearchRequestRunnable != null) {
             editParticipants.removeCallbacks(performSearchRequestRunnable)
@@ -368,7 +372,7 @@ class MessageNewConversationFragment : BaseFragment(), LoaderCallbacks<List<Parc
             paint.textSize = textSizeBackup - padding
             nameWidth = paint.measureText(displayName)
             paint.textSize = textSizeBackup
-            return Math.round(nameWidth + padding * 2)
+            return (nameWidth + padding * 2).roundToInt()
         }
 
     }

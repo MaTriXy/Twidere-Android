@@ -21,11 +21,11 @@ package org.mariotaku.twidere.adapter
 
 import android.content.Context
 import android.database.CursorIndexOutOfBoundsException
-import android.support.v4.widget.Space
-import android.support.v7.widget.RecyclerView
 import android.util.SparseBooleanArray
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.widget.Space
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.RequestManager
 import org.mariotaku.kpreferences.get
 import org.mariotaku.ktextension.*
@@ -79,6 +79,8 @@ abstract class ParcelableStatusesAdapter(
     final override val mediaPreviewEnabled: Boolean = Utils.isMediaPreviewEnabled(context, preferences)
     final override val sensitiveContentEnabled: Boolean = preferences.getBoolean(KEY_DISPLAY_SENSITIVE_CONTENTS, false)
     private val showCardActions: Boolean = !preferences[hideCardActionsKey]
+    private val showCardNumbers: Boolean = !preferences[hideCardNumbersKey]
+    private val showLinkPreview: Boolean = preferences[showLinkPreviewKey]
 
     private val gapLoadingIds: MutableSet<ObjectId> = HashSet()
 
@@ -169,25 +171,29 @@ abstract class ParcelableStatusesAdapter(
 
     override fun setData(data: List<ParcelableStatus>?): Boolean {
         var changed = true
-        if (data == null) {
-            displayPositions = null
-            displayDataCount = 0
-        } else if (data is ObjectCursor) {
-            displayPositions = null
-            displayDataCount = data.size
-        } else {
-            var filteredCount = 0
-            displayPositions = IntArray(data.size).apply {
-                data.forEachIndexed { i, item ->
-                    if (!item.is_gap && item.is_filtered) {
-                        filteredCount++
-                    } else {
-                        this[i - filteredCount] = i
+        when (data) {
+            null -> {
+                displayPositions = null
+                displayDataCount = 0
+            }
+            is ObjectCursor -> {
+                displayPositions = null
+                displayDataCount = data.size
+            }
+            else -> {
+                var filteredCount = 0
+                displayPositions = IntArray(data.size).apply {
+                    data.forEachIndexed { i, item ->
+                        if (!item.is_gap && item.is_filtered) {
+                            filteredCount++
+                        } else {
+                            this[i - filteredCount] = i
+                        }
                     }
                 }
+                displayDataCount = data.size - filteredCount
+                changed = this.data != data
             }
-            displayDataCount = data.size - filteredCount
-            changed = this.data != data
         }
         this.data = data
         this.infoCache = if (data != null) arrayOfNulls(data.size) else null
@@ -261,6 +267,15 @@ abstract class ParcelableStatusesAdapter(
         }, def, raw)!!
     }
 
+    override fun isCardNumbersShown(position: Int): Boolean {
+        if (position == RecyclerView.NO_POSITION) return showCardNumbers
+        return showCardNumbers || showingActionCardId == getItemId(position)
+    }
+
+    override fun isLinkPreviewShown(position: Int): Boolean {
+        return showLinkPreview
+    }
+
     override fun isCardActionsShown(position: Int): Boolean {
         if (position == RecyclerView.NO_POSITION) return showCardActions
         return showCardActions || showingActionCardId == getItemId(position)
@@ -313,7 +328,7 @@ abstract class ParcelableStatusesAdapter(
                 return TimelineFilterHeaderViewHolder(this, view)
             }
         }
-        throw IllegalStateException("Unknown view type " + viewType)
+        throw IllegalStateException("Unknown view type $viewType")
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
@@ -339,8 +354,7 @@ abstract class ParcelableStatusesAdapter(
         if (position == 0 && ILoadMoreSupportAdapter.START in loadMoreIndicatorPosition) {
             return ITEM_VIEW_TYPE_LOAD_INDICATOR
         }
-        val countIndex = getItemCountIndex(position)
-        when (countIndex) {
+        when (val countIndex = getItemCountIndex(position)) {
             ITEM_INDEX_LOAD_START_INDICATOR, ITEM_INDEX_LOAD_END_INDICATOR -> {
                 return ITEM_VIEW_TYPE_LOAD_INDICATOR
             }
@@ -399,7 +413,7 @@ abstract class ParcelableStatusesAdapter(
         // lesser equals than read position
         if (positionKey <= 0) return RecyclerView.NO_POSITION
         val range = rangeOfSize(statusStartIndex, getStatusCount(raw))
-        if (range.isEmpty() || range.start < 0) return RecyclerView.NO_POSITION
+        if (range.isEmpty() || range.first < 0) return RecyclerView.NO_POSITION
         if (positionKey < getStatusPositionKey(range.last, raw)) {
             return range.last
         }
@@ -411,7 +425,7 @@ abstract class ParcelableStatusesAdapter(
         // lesser equals than read position
         if (sortId <= 0) return RecyclerView.NO_POSITION
         val range = rangeOfSize(statusStartIndex, getStatusCount(raw))
-        if (range.isEmpty() || range.start < 0) return RecyclerView.NO_POSITION
+        if (range.isEmpty() || range.first < 0) return RecyclerView.NO_POSITION
         if (sortId < getStatusSortId(range.last, raw)) {
             return range.last
         }
@@ -453,7 +467,7 @@ abstract class ParcelableStatusesAdapter(
                 val timestamp = cursor.safeGetLong(indices[Statuses.TIMESTAMP])
                 val sortId = cursor.safeGetLong(indices[Statuses.SORT_ID])
                 val positionKey = cursor.safeGetLong(indices[Statuses.POSITION_KEY])
-                val gap = cursor.getInt(indices[Statuses.IS_GAP]) == 1
+                val gap = cursor.safeGetInt(indices[Statuses.IS_GAP]) == 1
                 val newInfo = StatusInfo(_id, accountKey, id, timestamp, sortId, positionKey, gap)
                 infoCache?.set(dataPosition, newInfo)
                 return@run newInfo
@@ -478,11 +492,11 @@ abstract class ParcelableStatusesAdapter(
                 } else {
                     dataPosition
                 }
-                if (reuse && data is ObjectCursor) {
+                return if (reuse && data is ObjectCursor) {
                     reuseStatus.is_filtered = false
-                    return data.setInto(listPosition, reuseStatus)
+                    data.setInto(listPosition, reuseStatus)
                 } else {
-                    return data[listPosition]
+                    data[listPosition]
                 }
             }
         }

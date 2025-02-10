@@ -21,6 +21,7 @@ package org.mariotaku.twidere.extension.model.api
 
 import android.text.Spanned
 import android.text.style.URLSpan
+import org.apache.commons.text.translate.EntityArrays
 import org.apache.commons.text.translate.LookupTranslator
 import org.mariotaku.commons.text.CodePointArray
 import org.mariotaku.ktextension.isNotNullOrEmpty
@@ -40,12 +41,12 @@ import org.mariotaku.twidere.model.util.ParcelableLocationUtils
 import org.mariotaku.twidere.model.util.ParcelableMediaUtils
 import org.mariotaku.twidere.text.AcctMentionSpan
 import org.mariotaku.twidere.text.HashtagSpan
-import org.mariotaku.twidere.util.EntityArrays
 import org.mariotaku.twidere.util.HtmlBuilder
 import org.mariotaku.twidere.util.HtmlSpanBuilder
 import org.mariotaku.twidere.util.InternalTwitterContentUtils
 import org.mariotaku.twidere.util.InternalTwitterContentUtils.getMediaUrl
 import org.mariotaku.twidere.util.InternalTwitterContentUtils.getStartEndForEntity
+import kotlin.math.max
 
 fun Status.toParcelable(details: AccountDetails, profileImageSize: String = "normal",
         updateFilterInfoAction: (Status, ParcelableStatus) -> Unit = ::updateFilterInfoDefault): ParcelableStatus {
@@ -71,6 +72,13 @@ fun Status.applyTo(accountKey: UserKey, accountType: String, profileImageSize: S
     result.timestamp = createdAt?.time ?: 0
 
     extras.external_url = inferredExternalUrl
+    extras.entities_url = entities?.urls?.map { it.expandedUrl }?.let {
+        if (isQuoteStatus) {
+            it.take(max(0, it.count() - 1))
+        } else {
+            it
+        }
+    }?.toTypedArray()
     extras.support_entities = entities != null
     extras.statusnet_conversation_id = statusnetConversationId
     extras.conversation_id = conversationId
@@ -212,7 +220,11 @@ fun Status.applyTo(accountKey: UserKey, accountType: String, profileImageSize: S
 
 fun Status.formattedTextWithIndices(): StatusTextWithIndices {
     val source = CodePointArray(this.fullText ?: this.text!!)
-    val builder = HtmlBuilder(source, false, true, false)
+    val builder = HtmlBuilder(source,
+        throwExceptions = false,
+        sourceIsEscaped = true,
+        shouldReEscape = false
+    )
     builder.addEntities(this)
     val textWithIndices = StatusTextWithIndices()
     val (text, spans) = builder.buildWithIndices()

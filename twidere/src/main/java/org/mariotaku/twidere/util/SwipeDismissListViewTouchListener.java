@@ -25,7 +25,7 @@ import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.graphics.Rect;
 import android.os.SystemClock;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
@@ -325,7 +325,7 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
         return false;
     }
 
-    class PendingDismissData implements Comparable<PendingDismissData> {
+    static class PendingDismissData implements Comparable<PendingDismissData> {
         public int position;
         public View view;
 
@@ -391,12 +391,9 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
             }
         });
 
-        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator valueAnimator) {
-                lp.height = (Integer) valueAnimator.getAnimatedValue();
-                dismissView.setLayoutParams(lp);
-            }
+        animator.addUpdateListener(valueAnimator -> {
+            lp.height = (Integer) valueAnimator.getAnimatedValue();
+            dismissView.setLayoutParams(lp);
         });
 
         mPendingDismisses.add(new PendingDismissData(dismissPosition, dismissView));

@@ -3,9 +3,9 @@ package org.mariotaku.twidere.view
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.support.annotation.ColorInt
-import android.support.v4.view.ViewCompat
-import android.support.v7.widget.AppCompatImageButton
+import androidx.annotation.ColorInt
+import androidx.core.view.ViewCompat
+import androidx.appcompat.widget.AppCompatImageButton
 import android.util.AttributeSet
 import android.widget.ImageView
 import org.mariotaku.chameleon.Chameleon
@@ -111,12 +111,16 @@ class IconActionButton(
 
         fun IIconActionButton.updateColorFilter() {
             this as ImageView
-            if (isActivated) {
-                setColorFilter(activatedColor)
-            } else if (isEnabled) {
-                setColorFilter(defaultColor)
-            } else {
-                setColorFilter(disabledColor)
+            when {
+                isActivated -> {
+                    setColorFilter(activatedColor)
+                }
+                isEnabled -> {
+                    setColorFilter(defaultColor)
+                }
+                else -> {
+                    setColorFilter(disabledColor)
+                }
             }
         }
     }

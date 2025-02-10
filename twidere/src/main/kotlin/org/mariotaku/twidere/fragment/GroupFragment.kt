@@ -5,9 +5,10 @@ import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.os.Bundle
-import android.support.v4.app.LoaderManager.LoaderCallbacks
-import android.support.v4.content.FixedAsyncTaskLoader
-import android.support.v4.content.Loader
+import androidx.loader.app.LoaderManager
+import androidx.loader.app.LoaderManager.LoaderCallbacks
+import androidx.loader.content.FixedAsyncTaskLoader
+import androidx.loader.content.Loader
 import org.mariotaku.microblog.library.MicroBlogException
 import org.mariotaku.microblog.library.statusnet.model.Group
 import org.mariotaku.twidere.Constants.*
@@ -38,20 +39,22 @@ class GroupFragment : AbsToolbarTabPagesFragment(), LoaderCallbacks<SingleRespon
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
-        Utils.setNdefPushMessageCallback(activity, NfcAdapter.CreateNdefMessageCallback {
+        activity?.let {
+            Utils.setNdefPushMessageCallback(it, NfcAdapter.CreateNdefMessageCallback {
             val url = group?.url ?: return@CreateNdefMessageCallback null
             NdefMessage(arrayOf(NdefRecord.createUri(url)))
         })
+        }
 
         getGroupInfo(false)
     }
 
-    override fun onCreateLoader(id: Int, args: Bundle): Loader<SingleResponse<ParcelableGroup>> {
-        val accountKey = args.getParcelable<UserKey?>(EXTRA_ACCOUNT_KEY)
+    override fun onCreateLoader(id: Int, args: Bundle?): Loader<SingleResponse<ParcelableGroup>> {
+        val accountKey = args!!.getParcelable<UserKey?>(EXTRA_ACCOUNT_KEY)
         val groupId = args.getString(EXTRA_GROUP_ID)
         val groupName = args.getString(EXTRA_GROUP_NAME)
         val omitIntentExtra = args.getBoolean(EXTRA_OMIT_INTENT_EXTRA, true)
-        return ParcelableGroupLoader(context, omitIntentExtra, arguments, accountKey, groupId,
+        return ParcelableGroupLoader(requireContext(), omitIntentExtra, arguments, accountKey, groupId,
                 groupName)
     }
 
@@ -67,7 +70,7 @@ class GroupFragment : AbsToolbarTabPagesFragment(), LoaderCallbacks<SingleRespon
 
     fun displayGroup(group: ParcelableGroup?) {
         val activity = activity ?: return
-        loaderManager.destroyLoader(0)
+        LoaderManager.getInstance(this).destroyLoader(0)
         this.group = group
 
         if (group != null) {
@@ -80,7 +83,7 @@ class GroupFragment : AbsToolbarTabPagesFragment(), LoaderCallbacks<SingleRespon
 
 
     fun getGroupInfo(omitIntentExtra: Boolean) {
-        val lm = loaderManager
+        val lm = LoaderManager.getInstance(this)
         lm.destroyLoader(0)
         val args = Bundle(arguments)
         args.putBoolean(EXTRA_OMIT_INTENT_EXTRA, omitIntentExtra)
@@ -111,12 +114,16 @@ class GroupFragment : AbsToolbarTabPagesFragment(), LoaderCallbacks<SingleRespon
                 val twitter = MicroBlogAPIFactory.getInstance(context, accountKey) ?:
                         throw MicroBlogException("No account")
                 val group: Group
-                if (groupId != null) {
-                    group = twitter.showGroup(groupId)
-                } else if (groupName != null) {
-                    group = twitter.showGroupByName(groupName)
-                } else {
-                    return SingleResponse()
+                group = when {
+                    groupId != null -> {
+                        twitter.showGroup(groupId)
+                    }
+                    groupName != null -> {
+                        twitter.showGroupByName(groupName)
+                    }
+                    else -> {
+                        return SingleResponse()
+                    }
                 }
                 return SingleResponse.getInstance(ParcelableGroupUtils.from(group, accountKey, 0,
                         group.isMember))

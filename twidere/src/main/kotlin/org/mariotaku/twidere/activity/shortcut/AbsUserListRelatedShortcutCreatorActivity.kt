@@ -34,11 +34,6 @@ import org.mariotaku.twidere.model.UserKey
  */
 abstract class AbsUserListRelatedShortcutCreatorActivity : AbsShortcutCreatorActivity() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-    }
-
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         when (requestCode) {
             REQUEST_SELECT_USER_LIST -> {
@@ -49,8 +44,10 @@ abstract class AbsUserListRelatedShortcutCreatorActivity : AbsShortcutCreatorAct
                 }
                 val list = data.getParcelableExtra<ParcelableUserList>(EXTRA_USER_LIST)
                 val extras = data.getBundleExtra(EXTRA_EXTRAS)
-                val accountKey = extras.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY)
-                onUserListSelected(accountKey, list)
+                val accountKey = extras?.getParcelable<UserKey>(EXTRA_ACCOUNT_KEY)
+                if (list != null) {
+                    onUserListSelected(accountKey, list)
+                }
             }
             else -> {
                 super.onActivityResult(requestCode, resultCode, data)
@@ -58,7 +55,7 @@ abstract class AbsUserListRelatedShortcutCreatorActivity : AbsShortcutCreatorAct
         }
     }
 
-    override final fun onAccountSelected(accountKey: UserKey, extras: Bundle?) {
+    final override fun onAccountSelected(accountKey: UserKey, extras: Bundle?) {
         val selectUserListIntent = Intent(this, UserListSelectorActivity::class.java)
         selectUserListIntent.putExtra(EXTRA_ACCOUNT_KEY, accountKey)
         selectUserListIntent.putExtra(EXTRA_SHOW_MY_LISTS, true)

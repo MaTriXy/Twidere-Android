@@ -22,7 +22,7 @@ package org.mariotaku.twidere.view;
 import android.content.Context;
 import android.graphics.Rect;
 import android.graphics.Shader;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.util.AttributeSet;
 import android.view.Gravity;
 
@@ -83,7 +83,6 @@ public final class BirthdayView extends LayeredCanvasView {
         ((AnimatedBitmapLayer) layers[2]).setScale(Math.max(1, w / 160));
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     protected boolean fitSystemWindows(@NonNull Rect insets) {
         final int stripTop = Utils.INSTANCE.getInsetsTopWithoutActionBarHeight(getContext(), insets.top);

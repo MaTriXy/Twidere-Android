@@ -19,9 +19,9 @@
 
 package org.mariotaku.twidere.extension.text.twitter
 
-import android.support.test.InstrumentationRegistry
-import android.support.test.runner.AndroidJUnit4
-import com.twitter.Extractor
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.twitter.twittertext.Extractor
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -42,7 +42,7 @@ class ExtractorExtensionsTest {
 
     @Before
     fun setUp() {
-        val context = InstrumentationRegistry.getContext()
+        val context = InstrumentationRegistry.getInstrumentation().context
 
         // This is a tweet by @t_deyarmin, mentioning @nixcraft
         inReplyTo = context.resources.openRawResource(R.raw.parcelable_status_848051071444410368).use {

@@ -3,9 +3,9 @@ package org.mariotaku.twidere.view
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.support.annotation.ColorInt
-import android.support.v4.view.ViewCompat
-import android.support.v7.widget.AppCompatImageView
+import androidx.annotation.ColorInt
+import androidx.core.view.ViewCompat
+import androidx.appcompat.widget.AppCompatImageView
 import android.util.AttributeSet
 import org.mariotaku.chameleon.Chameleon
 import org.mariotaku.chameleon.ChameleonView
@@ -23,7 +23,7 @@ open class IconActionView(
         context: Context, attrs: AttributeSet? = null
 ) : AppCompatImageView(context, attrs), IIconActionButton {
 
-    override var defaultColor: Int = 0
+    final override var defaultColor: Int = 0
         @ColorInt
         get() {
             if (field == 0) {
@@ -40,7 +40,7 @@ open class IconActionView(
             updateColorFilter()
         }
 
-    override var activatedColor: Int = 0
+    final override var activatedColor: Int = 0
         @ColorInt
         get() {
             if (field != 0) return field
@@ -51,7 +51,7 @@ open class IconActionView(
             updateColorFilter()
         }
 
-    override var disabledColor: Int = 0
+    final override var disabledColor: Int = 0
         @ColorInt
         get() {
             if (field != 0) return field

@@ -23,9 +23,9 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.os.SystemClock;
-import android.support.annotation.NonNull;
-import android.support.v4.view.ViewCompat;
-import android.support.v4.widget.ViewDragHelper;
+import androidx.annotation.NonNull;
+import androidx.core.view.ViewCompat;
+import androidx.customview.widget.ViewDragHelper;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.GestureDetector.SimpleOnGestureListener;
@@ -409,13 +409,11 @@ public class HeaderDrawerLayout extends ViewGroup {
             if (dy > 0 && mDrawer.canScrollCallback(-dy) && mDrawer.isTouchingScrollableContent()) {
                 if (!mDrawer.isUsingDragHelper()) {
                     // Scrolling up while list still has space to scroll, so make header still
-                    mScrollingHeaderByHelper = false;
-                    return current;
                 } else {
                     mDrawer.scrollByCallback(-dy);
-                    mScrollingHeaderByHelper = false;
-                    return current;
                 }
+                mScrollingHeaderByHelper = false;
+                return current;
             }
             final int min = mDrawer.getHeaderTopMinimum(), max = mDrawer.getHeaderTopMaximum();
             if (top < min && mDrawer.isTouchingScrollableContent() && mDrawer.isUsingDragHelper()) {

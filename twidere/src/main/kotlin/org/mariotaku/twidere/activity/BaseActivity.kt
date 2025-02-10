@@ -27,22 +27,22 @@ import android.graphics.Rect
 import android.nfc.NfcAdapter
 import android.os.Build
 import android.os.Bundle
-import android.support.annotation.StyleRes
-import android.support.v4.app.Fragment
-import android.support.v4.graphics.ColorUtils
-import android.support.v4.view.OnApplyWindowInsetsListener
-import android.support.v4.view.WindowInsetsCompat
-import android.support.v7.app.TwilightManagerAccessor
-import android.support.v7.preference.Preference
-import android.support.v7.preference.PreferenceFragmentCompat
-import android.support.v7.preference.PreferenceFragmentCompat.OnPreferenceDisplayDialogCallback
-import android.support.v7.view.menu.ActionMenuItemView
-import android.support.v7.widget.TwidereActionMenuView
 import android.util.AttributeSet
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import androidx.annotation.StyleRes
+import androidx.appcompat.app.TwilightManagerAccessor
+import androidx.appcompat.view.menu.ActionMenuItemView
+import androidx.appcompat.widget.TwidereActionMenuView
+import androidx.core.graphics.ColorUtils
+import androidx.core.view.OnApplyWindowInsetsListener
+import androidx.core.view.WindowInsetsCompat
+import androidx.fragment.app.Fragment
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.PreferenceFragmentCompat.OnPreferenceDisplayDialogCallback
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestManager
 import com.squareup.otto.Bus
@@ -53,7 +53,6 @@ import org.mariotaku.kpreferences.KPreferences
 import org.mariotaku.kpreferences.get
 import org.mariotaku.ktextension.activityLabel
 import org.mariotaku.ktextension.getSystemWindowInsets
-import org.mariotaku.ktextension.systemWindowInsets
 import org.mariotaku.ktextension.unregisterReceiverSafe
 import org.mariotaku.restfu.http.RestHttpClient
 import org.mariotaku.twidere.BuildConfig
@@ -144,11 +143,11 @@ open class BaseActivity : ChameleonActivity(), IBaseActivity<BaseActivity>, IThe
     protected val isDialogTheme: Boolean
         get() = ThemeUtils.getBooleanFromAttribute(this, R.attr.isDialogTheme)
 
-    override final val currentThemeBackgroundAlpha by lazy {
+    final override val currentThemeBackgroundAlpha by lazy {
         themeBackgroundAlpha
     }
 
-    override final val currentThemeBackgroundOption by lazy {
+    final override val currentThemeBackgroundOption by lazy {
         themeBackgroundOption
     }
 
@@ -197,14 +196,18 @@ open class BaseActivity : ChameleonActivity(), IBaseActivity<BaseActivity>, IThe
         private set
 
     override fun getSystemWindowInsets(caller: Fragment, insets: Rect): Boolean {
-        if (systemWindowsInsets == null) return false
-        insets.set(systemWindowsInsets)
-        return true
+        return systemWindowsInsets?.let {
+            insets.set(it)
+            true
+        } ?: false
     }
 
     override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
         if (systemWindowsInsets == null) {
-            systemWindowsInsets = insets.systemWindowInsets
+            systemWindowsInsets = Rect(insets.systemWindowInsets.left,
+                    insets.systemWindowInsets.top,
+                    insets.systemWindowInsets.right,
+                    insets.systemWindowInsets.bottom)
         } else {
             insets.getSystemWindowInsets(systemWindowsInsets!!)
         }
@@ -298,7 +301,7 @@ open class BaseActivity : ChameleonActivity(), IBaseActivity<BaseActivity>, IThe
                 for (i in 0 until handlerFilter.countDataAuthorities()) {
                     val authorityEntry = handlerFilter.getDataAuthority(i)
                     val port = authorityEntry.port
-                    intentFilter.addDataAuthority(authorityEntry.host, if (port < 0) null else Integer.toString(port))
+                    intentFilter.addDataAuthority(authorityEntry.host, if (port < 0) null else port.toString())
                 }
                 try {
                     adapter.enableForegroundDispatch(this, intent, arrayOf(intentFilter), null)
@@ -361,7 +364,11 @@ open class BaseActivity : ChameleonActivity(), IBaseActivity<BaseActivity>, IThe
             super.attachBaseContext(newBase)
             return
         }
-        super.attachBaseContext(newBase.overriding(locale))
+        val newContext = newBase.overriding(locale)
+        super.attachBaseContext(newContext)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            applyOverrideConfiguration(newContext.resources.configuration)
+        }
     }
 
     override fun executeAfterFragmentResumed(useHandler: Boolean, action: (BaseActivity) -> Unit): Promise<Unit, Exception> {
@@ -463,20 +470,20 @@ open class BaseActivity : ChameleonActivity(), IBaseActivity<BaseActivity>, IThe
     }
 
     private fun newInstance(name: String, context: Context, attrs: AttributeSet): View? {
-        try {
+        return try {
             val cls = findClass(name) ?: throw ClassNotFoundException(name)
             val constructor = cls.getConstructor(Context::class.java, AttributeSet::class.java)
-            return constructor.newInstance(context, attrs) as View
+            constructor.newInstance(context, attrs) as View
         } catch (e: InstantiationException) {
-            return null
+            null
         } catch (e: IllegalAccessException) {
-            return null
+            null
         } catch (e: InvocationTargetException) {
-            return null
+            null
         } catch (e: NoSuchMethodException) {
-            return null
+            null
         } catch (e: ClassNotFoundException) {
-            return null
+            null
         }
 
     }

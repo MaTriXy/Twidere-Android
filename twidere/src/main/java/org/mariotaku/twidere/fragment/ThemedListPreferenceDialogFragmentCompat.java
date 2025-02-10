@@ -17,8 +17,8 @@ package org.mariotaku.twidere.fragment;
 
 import android.content.DialogInterface;
 import android.os.Bundle;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.preference.ListPreference;
+import androidx.appcompat.app.AlertDialog;
+import androidx.preference.ListPreference;
 
 public class ThemedListPreferenceDialogFragmentCompat extends ThemedPreferenceDialogFragmentCompat {
     private int mClickedDialogEntryIndex;
@@ -47,24 +47,21 @@ public class ThemedListPreferenceDialogFragmentCompat extends ThemedPreferenceDi
         }
         mClickedDialogEntryIndex = preference.findIndexOfValue(preference.getValue());
         builder.setSingleChoiceItems(entries, mClickedDialogEntryIndex,
-                new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        mClickedDialogEntryIndex = which;
-                        /*
-                         * Clicking on an item simulates the positive button
-                         * click, and dismisses the dialog.
-                         */
-                        ThemedListPreferenceDialogFragmentCompat.this.onClick(dialog,
-                                DialogInterface.BUTTON_POSITIVE);
-                        dialog.dismiss();
-                    }
+                (dialog, which) -> {
+                    mClickedDialogEntryIndex = which;
+                    /*
+                     * Clicking on an item simulates the positive button
+                     * click, and dismisses the dialog.
+                     */
+                    ThemedListPreferenceDialogFragmentCompat.this.onClick(dialog,
+                            DialogInterface.BUTTON_POSITIVE);
+                    dialog.dismiss();
                 });
         /*
          * The typical interaction for list-based dialogs is to have
          * click-on-an-item dismiss the dialog instead of the user having to
          * press 'Ok'.
          */
-        //noinspection ConstantConditions
         builder.setPositiveButton(null, null);
     }
 

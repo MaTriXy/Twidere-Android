@@ -25,7 +25,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.graphics.drawable.Drawable
-import android.support.v4.content.res.ResourcesCompat
+import androidx.core.content.res.ResourcesCompat
 import android.util.LruCache
 import org.mariotaku.twidere.constant.SharedPreferenceConstants.KEY_EMOJI_SUPPORT
 
@@ -45,15 +45,10 @@ class ExternalThemeManager(private val context: Context, private val preferences
 
     fun reloadEmojiPreferences() {
         val emojiComponentName = preferences.getString(KEY_EMOJI_SUPPORT, null)
-        if (emojiComponentName != null) {
-            val componentName = ComponentName.unflattenFromString(emojiComponentName)
-            if (componentName != null) {
-                emojiPackageName = componentName.packageName
-            } else {
-                emojiPackageName = null
-            }
+        emojiPackageName = if (emojiComponentName != null) {
+            ComponentName.unflattenFromString(emojiComponentName)?.packageName
         } else {
-            emojiPackageName = null
+            null
         }
         initEmojiSupport()
     }

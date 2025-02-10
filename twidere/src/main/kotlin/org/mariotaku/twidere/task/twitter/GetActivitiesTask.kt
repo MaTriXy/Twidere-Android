@@ -4,7 +4,7 @@ import android.accounts.AccountManager
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
-import android.support.annotation.UiThread
+import androidx.annotation.UiThread
 import org.mariotaku.kpreferences.get
 import org.mariotaku.library.objectcursor.ObjectCursor
 import org.mariotaku.microblog.library.MicroBlogException
@@ -35,6 +35,8 @@ import org.mariotaku.twidere.util.content.ContentResolverUtils
 import org.mariotaku.twidere.util.sync.SyncTaskRunner
 import org.mariotaku.twidere.util.sync.TimelineSyncManager
 import java.util.*
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Created by mariotaku on 16/1/4.
@@ -130,7 +132,7 @@ abstract class GetActivitiesTask(
         val valuesList = ArrayList<ContentValues>()
         var minIdx = -1
         var minPositionKey: Long = -1
-        if (!activities.isEmpty()) {
+        if (activities.isNotEmpty()) {
             val firstSortId = activities.first().timestamp
             val lastSortId = activities.last().timestamp
             // Get id diff of first and last item
@@ -142,12 +144,12 @@ abstract class GetActivitiesTask(
                 if (deleteBound[0] < 0) {
                     deleteBound[0] = activity.min_sort_position
                 } else {
-                    deleteBound[0] = Math.min(deleteBound[0], activity.min_sort_position)
+                    deleteBound[0] = min(deleteBound[0], activity.min_sort_position)
                 }
                 if (deleteBound[1] < 0) {
                     deleteBound[1] = activity.max_sort_position
                 } else {
-                    deleteBound[1] = Math.max(deleteBound[1], activity.max_sort_position)
+                    deleteBound[1] = max(deleteBound[1], activity.max_sort_position)
                 }
                 if (minIdx == -1 || activity < activities[minIdx]) {
                     minIdx = i
@@ -177,12 +179,14 @@ abstract class GetActivitiesTask(
             val rowsDeleted = cr.delete(writeUri, where.sql, whereArgs) - localDeleted
             // Why loadItemLimit / 2? because it will not acting strange in most cases
             val insertGap = !noItemsBefore && olderCount > 0 && rowsDeleted <= 0 && activities.size > loadItemLimit / 2
-            if (insertGap && !valuesList.isEmpty()) {
+            if (insertGap && valuesList.isNotEmpty()) {
                 valuesList[valuesList.size - 1].put(Activities.IS_GAP, true)
             }
         }
-        // Insert previously fetched items.
-        ContentResolverUtils.bulkInsert(cr, writeUri, valuesList)
+        if (valuesList.isNotEmpty()) {
+            // Insert previously fetched items.
+            ContentResolverUtils.bulkInsert(cr, writeUri, valuesList)
+        }
 
         // Remove gap flag
         if (maxId != null && sinceId == null) {
